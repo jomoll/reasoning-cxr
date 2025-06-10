@@ -1,0 +1,5 @@
+image-type: "chest-x-ray"
+version: "1.0"
+annotator: "Llama-3.3-70B-Instruct"
+image-id: "template_id"
+metadata: "1,1,2,3,3,3,2,3"

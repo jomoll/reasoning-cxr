@@ -2,13 +2,15 @@ import os
 import pandas as pd
 import transformers 
 import torch
-import json
+import yaml
+from shutil import copyfile
 
 # constants
 metadata_path = "data/keno_1000/metadata.csv"
 image_dir = "data/keno_1000/data_png"
-output_path = "data/keno_1000/draft_annotations_llama.json"
-model_name = "meta-llama/Llama-3.3-70B-Instruct"
+yaml_output_dir = "data/keno_1000/annotations"
+template_path = "template_llama.yaml"
+model_name = "meta-llama/Llama-3.1-8B-Instruct"
 
 # Prompt
 with open("example_output.txt", "r") as f:
@@ -58,17 +60,24 @@ def describe_row(row):
     parts.append(f"{other_map.get(row['atelectasis_left'], 'unknown')} left atelectasis")
     return "Clinical data: " + ", ".join(parts) + "."
 
-annotations = {}
+# Create output directory if it doesn't exist
+os.makedirs(yaml_output_dir, exist_ok=True)
+
 for filename in os.listdir(image_dir):
     if not filename.lower().endswith(".png"):
         continue
 
     uid = filename.split(".")[0]
+    yaml_output_path = os.path.join(yaml_output_dir, f"{uid}.yaml")
 
     if uid not in metadata_df.index:
         print(f"Skipping {filename}: UID not found in metadata.")
         continue
+    
     try:
+        # Copy template file
+        copyfile(template_path, yaml_output_path)
+        
         row = metadata_df.loc[uid]
         clinical_info = describe_row(row)
 
@@ -77,11 +86,10 @@ for filename in os.listdir(image_dir):
         # Format prompt for LLaMA
         formatted_prompt = f"[INST] {prompt} [/INST]"
         
-        # Tokenize
+        # Tokenize and generate output as before
         inputs = tokenizer(formatted_prompt, return_tensors="pt", truncation=True)
         inputs = inputs.to(model.device)
         
-        # Generate
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
@@ -92,17 +100,30 @@ for filename in os.listdir(image_dir):
                 pad_token_id=tokenizer.eos_token_id
             )
         
-        # Decode output
         output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        # Remove the prompt from the output
-        output_text = output_text[len(formatted_prompt):]
-        
-        annotations[filename] = output_text.strip()
+        output_text = output_text[len(formatted_prompt):].strip()
 
+         # Read existing YAML
+        with open(yaml_output_path, 'r') as f:
+            yaml_content = yaml.safe_load(f)
+
+        # Update YAML content while preserving structure
+        yaml_content['image-type'] = "chest-x-ray"
+        yaml_content['version'] = "1.0"
+        yaml_content['annotator'] = "Llama-3.3-70B-Instruct"
+        yaml_content['image-id'] = uid
+        
+        # Convert row data to a metadata dictionary
+        metadata = row.to_dict()
+        # Convert numpy types to native Python types for YAML serialization
+        metadata = {k: v.item() if hasattr(v, 'item') else v for k, v in metadata.items()}
+        yaml_content['metadata'] = metadata
+        yaml_content['reasoning'] = output_text
+
+        # Write updated YAML with proper formatting
+        with open(yaml_output_path, 'w') as f:
+            yaml.dump(yaml_content, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
     except Exception as e:
         print(f"Error processing {filename}: {e}")
 
-with open(output_path, "w") as f:
-    json.dump(annotations, f, indent=2)
-
-print(f"Saved {len(annotations)} annotations to {output_path}")
+print(f"Saved annotations to {yaml_output_dir}")
