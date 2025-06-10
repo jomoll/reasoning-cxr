@@ -1,0 +1,168 @@
+image-type: "chest-x-ray"
+version: "1.0"
+annotator: "Markus Graf"
+image-id: "example-chest-x-ray-id"
+metadata: "1,1,2,3,3,3,2,3"
+Reasoning:
+  - Step:
+      Description: Assess the image quality.
+    Action:
+      - I am looking at the chest X-ray image.
+      - The image appears to be clear and well-defined.
+      - There are no significant artifacts or obstructions.
+      - There is no significant rotation of the image.
+      - The lungs are fully visible.
+      - The patient is positioned symmetrically.
+    Result: "The image is of diagnostic quality."
+  - Step:
+    Description: Look for central venous catheter placement.
+    Action:
+      - I am looking for the presence of a central venous catheter in the chest X-ray.
+      - I am looking at the right side of the neck for a central venous catheter.
+      - I do not see a central venous catheter at the right side of the neck.
+      - I am looking at the left side of the neck for a central venous catheter.
+      - I do not see a central venous catheter at the left side of the neck.
+      - I am looking at the right subvlavian vein for a central venous catheter.
+      - I do not see a central venous catheter at the right subclavian vein.
+      - I am looking at the left subvlavian vein for a central venous catheter.
+      - I do not see a central venous catheter at the left subclavian vein.
+    Result: "No central venous catheter is present in the chest X-ray."
+  - Step:
+    Description: Look for endotracheal tube placement.
+    Action:
+      - I am looking for the presence of an endotracheal tube in the chest X-ray.
+      - I am looking at the trachea for an endotracheal tube.
+      - I do not see an endotracheal tube in the trachea.
+    Result: "No endotracheal tube is present in the chest X-ray."
+  - Step:
+    Description: Look for nasogastric tube placement.
+    Action:
+      - I am looking for the presence of a nasogastric tube in the chest X-ray.
+      - I am looking at the esophagus for a nasogastric tube.
+      - I do not see a nasogastric tube in the esophagus.
+    Result: "No nasogastric tube is present in the chest X-ray."
+  - Step:
+    Description: Look for chest tube placement.
+    Action:
+      - I am looking for the presence of a chest tube in the chest X-ray.
+      - I am looking at the right side of the chest for a chest tube.
+      - I do not see a chest tube at the right side of the chest.
+      - I am looking at the left side of the chest for a chest tube.
+      - I do not see a chest tube at the left side of the chest.
+    Result: "No chest tube is present in the chest X-ray."
+  - Step:
+    Description: Look for pacemaker placement.
+    Action:
+      - I am looking for the presence of a pacemaker in the chest X-ray.
+      - I am looking at the right side of the chest for a pacemaker.
+      - I do not see a pacemaker at the right side of the chest.
+      - I am looking at the left side of the chest for a pacemaker.
+      - I do not see a pacemaker at the left side of the chest.
+    Result: "No pacemaker is present in the chest X-ray."
+  - Step:
+    Description: Look for other devices.
+    Action:
+      - I am looking for the presence of other devices in the chest X-ray.
+      - I am looking for orthopedic hardware.
+      - I do not see orthopedic hardware in the chest X-ray.
+      - I am looking for any other medical devices.
+      - I do not see any other medical devices in the chest X-ray.
+    Result: "No other medical devices are present in the chest X-ray."
+  - Step:
+    Description: Look for the heart size.
+    Action:
+      - I am looking at the heart size in the chest X-ray.
+      - The heart size appears to be normal.
+      - The heart contours are clear and well-defined.
+    Result: "The heart size is normal."
+  - Step:
+    Description: Look for mediastinal size and shift.
+    Action:
+      - I am looking at the mediastinal size and shift in the chest X-ray.
+      - The mediastinum appears to be normal in size.
+      - The medastinum appears to be midline.
+      - The mediastinal contours are clear and well-defined.
+    Result: "The mediastinal size is normal and midline."
+  - Step:
+    Description: Look for cardiac congestion.
+    Action:
+      - I am looking for signs of cardiac congestion in the chest X-ray.
+      - I am looking for pulmonary vascular congestion.
+      - There is no Redistribution of pulmonary vascular markings.
+      - There are no Kerley B lines.
+      - There is no peribronchial cuffing.
+      - There is no sign of pulmonary edema.
+    Result: "There is no cardiac congestion."
+  - Step: Look for pleural effusion.
+    Action:
+      - I am looking for signs of pleural effusion in the chest X-ray.
+      - I am looking at the right side of the chest for pleural effusion.
+      - The costophrenic angle on the right side is clear.
+      - There is no opacity in the right costophrenic angle.
+      - There is no pleural effusion on the right lower side of the chest.
+      - I am looking at the left side of the chest for pleural effusion.
+      - The costophrenic angle on the left side is clear.
+      - There is no opacity in the left lower side of the chest.
+      - There is no pleural effusion on the left side of the chest.
+    Result: "There is no pleural effusion."
+  - Step: Look for pulmonary atelectasis.
+    Action:
+      - I am looking for signs of pulmonary atelectasis in the chest X-ray.
+      - I am looking at the right lung for atelectasis.
+      - There is no opacity in the right lung.
+      - The right lung appears to be fully expanded.
+      - I am looking at the left lung for atelectasis.
+      - There is no opacity in the left lung.
+      - The left lung appears to be fully expanded.
+    Result: "There is no pulmonary atelectasis."
+  - Step: Look for pulmonary infiltrates.
+    Action:
+      - I am looking for signs of pulmonary infiltrates in the chest X-ray.
+      - I am looking at the right lung for infiltrates.
+      - There is no opacity in the right lung.
+      - The right lung appears to be clear.
+      - I am looking at the left lung for infiltrates.
+      - There is no opacity in the left lung.
+      - The left lung appears to be clear.
+    Result: "There are no pulmonary infiltrates."
+  - Step: Look for pneumothorax.
+    Action:
+      - I am looking for signs of pneumothorax in the chest X-ray.
+      - I am looking at the right lung for pneumothorax.
+      - There is no visible pleural line on the right side.
+      - There is no evidence of pneumothorax on the right side.
+      - I am looking at the left lung for pneumothorax.
+      - There is no visible pleural line on the left side.
+      - There is no evidence of pneumothorax on the left side.
+      - There is no mediastinal shift.
+    Result: "There is no pneumothorax."
+  - Step: Look for pathologies of the soft tissues.
+    Action:
+      - I am looking for pathologies of the soft tissues in the chest X-ray.
+      - I am looking at the right side of the chest for soft tissue pathologies.
+      - There are no abnormalities in the right side of the chest.
+      - I am looking at the left side of the chest for soft tissue pathologies.
+      - There are no abnormalities in the left side of the chest.
+    Result: "There are no pathologies of the soft tissues."
+  - Step: Formulate a final assessment.
+    Action:
+      - I am summarizing the findings from the chest X-ray.
+      - The image is of diagnostic quality.
+      - No central venous catheter is present.
+      - No endotracheal tube is present.
+      - No nasogastric tube is present.
+      - No chest tube is present.
+      - No pacemaker is present.
+      - No other medical devices are present.
+      - The heart size is normal.
+      - The mediastinal size is normal and midline.
+      - There is no cardiac congestion.
+      - There is no pleural effusion.
+      - There is no pulmonary atelectasis.
+      - There are no pulmonary infiltrates.
+      - There is no pneumothorax.
+      - There are no pathologies of the soft tissues.
+    Result: "The chest X-ray shows no significant abnormalities."
+FinalAssessment:
+  - "There are no therapeutic devices present in the chest X-ray."
+  - "The chest X-ray is normal with no significant abnormalities detected."

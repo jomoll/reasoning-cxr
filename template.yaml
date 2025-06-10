@@ -1,0 +1,15 @@
+image-type: "chest-x-ray"
+version: "1.0"
+annotator: "Markus Graf"
+image-id: "template_id"
+metadata: "1,1,2,3,3,3,2,3"
+Reasoning:
+  - Step:
+      Description: Assess the image quality.
+    Action:
+      - I am looking at the chest X-ray image.
+      - 
+    Result: "The image is of diagnostic quality."
+  - Step:
+FinalAssessment:
+  - 
