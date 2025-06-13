@@ -4,6 +4,7 @@ import transformers
 import torch
 import yaml
 from shutil import copyfile
+from tqdm import tqdm 
 
 # constants
 metadata_path = "data/keno_1000/metadata.csv"
@@ -12,6 +13,10 @@ yaml_output_dir = "data/keno_1000/annotations/v1.0"
 template_path = "template_llama.yaml"
 model_name = "meta-llama/Llama-3.1-8B-Instruct"
 version = str(1.0)
+
+# Replace the iteration section
+total_images = 900  # Number of images to process
+processed = 0
 
 # Prompt
 with open("example_output.txt", "r") as f:
@@ -114,82 +119,91 @@ other_map = {0: "none", 1: "mild", 2: "moderate", 3: "severe", 4: "very severe"}
 # Create output directory if it doesn't exist
 os.makedirs(yaml_output_dir, exist_ok=True)
 
-# Iterate through metadata instead of image directory
-for uid, row in metadata_df.iterrows():
+# Iterate through metadata file
+with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
+    # check if uid already in data/annotations/v1.0
+    if os.path.exists(yaml_output_dir):
+        existing_uids = {os.path.splitext(f)[0] for f in os.listdir(yaml_output_dir) if f.endswith('.yaml')}
+        metadata_df = metadata_df[~metadata_df.index.isin(existing_uids)]
+    # Iterate through each row in the metadata DataFrame
+    for uid, row in metadata_df.iterrows():
     
-    image_path = os.path.join(image_dir, f"{uid}.png")
-    yaml_output_path = os.path.join(yaml_output_dir, f"{uid}.yaml")
-    
-    # Check if image exists
-    #if not os.path.exists(image_path):
-    #    print(f"Skipping {uid}: Image file not found.")
-    #    continue
+        image_path = os.path.join(image_dir, f"{uid}.png")
+        yaml_output_path = os.path.join(yaml_output_dir, f"{uid}.yaml")
         
-    try:
-        # Copy template file
-        copyfile(template_path, yaml_output_path)
-        
-        clinical_info = describe_row(row)
+        # Check if image exists
+        #if not os.path.exists(image_path):
+        #    print(f"Skipping {uid}: Image file not found.")
+        #    continue
+            
+        try:
+            # Copy template file
+            copyfile(template_path, yaml_output_path)
+            
+            clinical_info = describe_row(row)
 
-        prompt = prompt_base + "\n\n" + clinical_info
-        
-        # Format prompt for LLaMA
-        formatted_prompt = f"[INST] {prompt} [/INST]"
-        
-        # Tokenize and generate output as before
-        inputs = tokenizer(formatted_prompt, return_tensors="pt", truncation=True)
-        inputs = inputs.to(model.device)
-        
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=2048,
-                do_sample=True,
-                num_beams=4,
-                pad_token_id=tokenizer.eos_token_id
-            )
-        
-        output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        output_text = output_text[len(formatted_prompt):].strip()
-        output_text = clean_yaml_format(output_text)  # Add formatting cleanup
+            prompt = prompt_base + "\n\n" + clinical_info
+            
+            # Format prompt for LLaMA
+            formatted_prompt = f"[INST] {prompt} [/INST]"
+            
+            # Tokenize and generate output as before
+            inputs = tokenizer(formatted_prompt, return_tensors="pt", truncation=True)
+            inputs = inputs.to(model.device)
+            
+            with torch.no_grad():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=2048,
+                    do_sample=True,
+                    num_beams=4,
+                    pad_token_id=tokenizer.eos_token_id
+                )
+            
+            output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            output_text = output_text[len(formatted_prompt):].strip()
+            output_text = clean_yaml_format(output_text)  # Add formatting cleanup
 
-        # Read existing YAML
-        with open(yaml_output_path, 'r') as f:
-            yaml_content = yaml.safe_load(f)
+            # Read existing YAML
+            with open(yaml_output_path, 'r') as f:
+                yaml_content = yaml.safe_load(f)
 
-        # Convert row data to a metadata dictionary
-        metadata = row.to_dict()
-        # Convert numpy types to native Python types for YAML serialization
-        metadata = {k: v.item() if hasattr(v, 'item') else v for k, v in metadata.items()}
+            # Convert row data to a metadata dictionary
+            metadata = row.to_dict()
+            # Convert numpy types to native Python types for YAML serialization
+            metadata = {k: v.item() if hasattr(v, 'item') else v for k, v in metadata.items()}
 
-         # Update YAML content while preserving structure
-        yaml_content['image-type'] = "chest-x-ray"
-        yaml_content['version'] = version
-        yaml_content['annotator'] = model_name
-        yaml_content['image-id'] = uid
-        yaml_content['metadata'] = metadata
-        
-        # Format the reasoning section
-        formatted_reasoning = {
-            'reasoning': clean_yaml_format(output_text)
-        }
-        
-        # Write updated YAML with proper formatting
-        with open(yaml_output_path, 'w') as f:
-            yaml.dump(
-                {**yaml_content, **formatted_reasoning},
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-                allow_unicode=True,
-                width=float("inf"),  # Prevent line wrapping
-                indent=2
-            )
-    except Exception as e:
-        print(f"Error processing {uid}: {e}")
-
-    # Stop after processing 1 images for testing
-    if uid == metadata_df.index[9]:  # Change this to control how many images to process
-        print("Processed 10 images, stopping for testing.")
-        break
-print(f"Saved annotations to {yaml_output_dir}")
+            # Update YAML content while preserving structure
+            yaml_content['image-type'] = "chest-x-ray"
+            yaml_content['version'] = version
+            yaml_content['annotator'] = model_name
+            yaml_content['image-id'] = uid
+            yaml_content['metadata'] = metadata
+            
+            # Format the reasoning section
+            formatted_reasoning = {
+                'reasoning': clean_yaml_format(output_text)
+            }
+            
+            # Write updated YAML with proper formatting
+            with open(yaml_output_path, 'w') as f:
+                yaml.dump(
+                    {**yaml_content, **formatted_reasoning},
+                    f,
+                    default_flow_style=False,
+                    sort_keys=False,
+                    allow_unicode=True,
+                    width=float("inf"),  # Prevent line wrapping
+                    indent=2
+                )
+            pbar.update(1)
+            processed += 1
+            
+            # Stop after processing desired number of images
+            if processed >= total_images:
+                break
+        except Exception as e:
+            pbar.write(f"Error processing {uid}: {e}")
+            continue
+     
+print(f"\nSaved {processed} annotations to {yaml_output_dir}")
