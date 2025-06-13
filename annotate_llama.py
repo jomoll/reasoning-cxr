@@ -7,15 +7,16 @@ from shutil import copyfile
 from tqdm import tqdm 
 
 # constants
+version = str(1.2)
 metadata_path = "data/keno_1000/metadata.csv"
 image_dir = "data/keno_1000/data_png"
-yaml_output_dir = "data/keno_1000/annotations/v1.0"
+yaml_output_dir = "data/keno_1000/annotations/v"+version
 template_path = "template_llama.yaml"
-model_name = "meta-llama/Llama-3.1-8B-Instruct"
-version = str(1.0)
+model_name = "meta-llama/Llama-3.3-70B-Instruct"
+
 
 # Replace the iteration section
-total_images = 900  # Number of images to process
+total_images = 10  # Number of images to process
 processed = 0
 
 # Prompt
