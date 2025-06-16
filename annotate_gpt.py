@@ -1,18 +1,26 @@
 import os
 import pandas as pd
-import transformers 
-import torch
 import yaml
 from shutil import copyfile
 from tqdm import tqdm 
 
+from openai import AzureOpenAI
+import numpy as np
+
 # constants
-version = str(1.2)
+version = str(1.3)
 metadata_path = "data/keno_1000/metadata.csv"
 image_dir = "data/keno_1000/data_png"
 yaml_output_dir = "data/keno_1000/annotations/v"+version
 template_path = "template_llama.yaml"
-model_name = "meta-llama/Llama-3.3-70B-Instruct"
+model_name = "jb-turbo-2024-04-09"  
+
+
+client = AzureOpenAI(
+    api_key="e849b8c4c4a04d3d817aa67d66189251",
+    api_version="2024-02-01",
+    azure_endpoint="https://jb-turbo-2024-04-09.openai.azure.com/",
+)
 
 
 # Replace the iteration section
@@ -22,25 +30,36 @@ processed = 0
 # Prompt
 with open("example_output.txt", "r") as f:
     example_output = f.read()
+
 prompt_base = (
     "You are a board-certified radiologist tasked with interpreting a chest X-ray image. "
-    "Please follow a systematic diagnostic approach to produce a clear, structured report. "
-    "Your output must follow this format:\n\n"
+    "You MUST follow these exact 16 steps in order:\n"
+    "1. Assess image quality.\n"
+    "2. Look for central venous catheter placement.\n"
+    "3. Look for endotracheal tube placement.\n"
+    "4. Look for nasogastric tube placement.\n"
+    "5. Look for chest tube placement.\n"
+    "6. Look for pacemaker placement.\n"
+    "7. Look for other devices.\n"
+    "8. Look for heart size.\n"
+    "9. Look for mediastinal size and shift.\n"
+    "10. Look for cardiac congestion.\n"
+    "11. Look for pleural effusion.\n"
+    "12. Look for pulmonary atelectasis.\n"
+    "13. Look for pulmonary infiltrates.\n"
+    "14. Look for pneumothorax.\n"
+    "15. Look for pathologies of the soft tissues.\n"
+    "16. Formulate final assessment.\n\n"
+    "For each step, use this exact format:\n"
     "Reasoning:\n"
-    " - Step:\n"
-    "   Description: \n"
+    "  - Step:\n"
+    "    Description: [Step name from above]\n"
     "    Action:\n"
-    "    - ...\n"
-    "    - ...\n"
-    "    Result: \n"
-    "- Step: ..."
-    "FinalAssessment:\n"
-    "[Summary diagnosis or clinical impression]\n\n"
-    "Ensure that your reasoning is thorough, clinically relevant, and easy to follow. "
-    "Use step-by-step anatomical logic, describing where you are looking and what you are seeing. "
-    "You are provided with an example below to guide the style and level of detail expected:\n\n"
-    + example_output +
-    "\nNow, write the report for the clinical diagnosis.\n\n"
+    "    - [Specific observation]\n"
+    "    Result: [Conclusion]\n\n"
+    "Below is a reference example showing the exact structure to follow:\n\n"
+    f"{example_output}\n"
+    "Now, write the report following these exact steps and format.\n\n"
 )
 
 def describe_row(row):
@@ -97,124 +116,92 @@ def clean_yaml_format(output_text):
             formatted_output['FinalAssessment'] = []
         
         return formatted_output
-        
+    
     except Exception as e:
         print(f"Error formatting YAML: {e}")
         return {'Reasoning': []}
-
-model = transformers.AutoModelForCausalLM.from_pretrained(model_name, cache_dir='.', trust_remote_code=True, device_map="auto", torch_dtype=torch.bfloat16)
-tokenizer = transformers.AutoTokenizer.from_pretrained(model_name, cache_dir='.', trust_remote_code=True)
 
 # Load metadata
 metadata_df = pd.read_csv(metadata_path)
 metadata_df.set_index("UID", inplace=True)
 
-# Add this after loading metadata_df but before the iteration loop
+# Optional: filter based on target_uids.txt if exists
 target_uids_file = "target_uids.txt"
 if os.path.exists(target_uids_file):
     with open(target_uids_file, 'r') as f:
         target_uids = {line.strip() for line in f if line.strip()}
-    # Filter metadata to only include target UIDs
     metadata_df = metadata_df[metadata_df.index.isin(target_uids)]
     print(f"Found {len(metadata_df)} samples matching target UIDs")
 else:
     print("No target_uids.txt found, will process all samples")
 
-# Update total_images to not exceed available samples
 total_images = min(total_images, len(metadata_df))
 
 # Define mappings
 cardio_map = {-1: "not assessable", 0: "normal", 1: "borderline", 2: "enlarged", 4: "massively enlarged"}
 other_map = {0: "none", 1: "mild", 2: "moderate", 3: "severe", 4: "very severe"}
 
-# Create output directory if it doesn't exist
 os.makedirs(yaml_output_dir, exist_ok=True)
 
-# Iterate through metadata file
+# Main loop
 with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
-    # check if uid already in data/annotations/v1.0
+    existing_uids = set()
     if os.path.exists(yaml_output_dir):
         existing_uids = {os.path.splitext(f)[0] for f in os.listdir(yaml_output_dir) if f.endswith('.yaml')}
         metadata_df = metadata_df[~metadata_df.index.isin(existing_uids)]
-    # Iterate through each row in the metadata DataFrame
+
     for uid, row in metadata_df.iterrows():
-    
         image_path = os.path.join(image_dir, f"{uid}.png")
         yaml_output_path = os.path.join(yaml_output_dir, f"{uid}.yaml")
-        
-        # Check if image exists
-        #if not os.path.exists(image_path):
-        #    print(f"Skipping {uid}: Image file not found.")
-        #    continue
-            
+
         try:
             # Copy template file
             copyfile(template_path, yaml_output_path)
-            
-            clinical_info = describe_row(row)
 
-            prompt = prompt_base + "\n\n" + clinical_info
-            
-            # Format prompt for LLaMA
-            formatted_prompt = f"[INST] {prompt} [/INST]"
-            
-            # Tokenize and generate output as before
-            inputs = tokenizer(formatted_prompt, return_tensors="pt", truncation=True)
-            inputs = inputs.to(model.device)
-            
-            with torch.no_grad():
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=2248,
-                    do_sample=True,
-                    num_beams=4,
-                    pad_token_id=tokenizer.eos_token_id
-                )
-            
-            output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-            output_text = output_text[len(formatted_prompt):].strip()
-            output_text = clean_yaml_format(output_text)  # Add formatting cleanup
+            clinical_info = describe_row(row)
+            full_prompt = prompt_base + "\n\n" + clinical_info
+
+            # Send request to Azure OpenAI
+            response = client.chat.completions.create(
+                model=model_name,
+                temperature=0,
+                n=1,
+                max_tokens=2500,
+                messages=[
+                    {"role": "system", "content": "You are a board-certified radiologist producing reasoning chains for chest X-ray interpretation."},
+                    {"role": "user", "content": full_prompt}
+                ]
+            )
+
+            output_text = response.choices[0].message.content.strip()
+            output_text = clean_yaml_format(output_text)
 
             # Read existing YAML
             with open(yaml_output_path, 'r') as f:
                 yaml_content = yaml.safe_load(f)
 
-            # Convert row data to a metadata dictionary
-            metadata = row.to_dict()
-            # Convert numpy types to native Python types for YAML serialization
-            metadata = {k: v.item() if hasattr(v, 'item') else v for k, v in metadata.items()}
+            metadata_dict = row.to_dict()
+            metadata_dict = {k: v.item() if hasattr(v, 'item') else v for k, v in metadata_dict.items()}
 
-            # Update YAML content while preserving structure
             yaml_content['image-type'] = "chest-x-ray"
             yaml_content['version'] = version
             yaml_content['annotator'] = model_name
             yaml_content['image-id'] = uid
-            yaml_content['metadata'] = metadata
-            
-            # Format the reasoning section
-            formatted_reasoning = {
-                'reasoning': clean_yaml_format(output_text)
-            }
-            
-            # Write updated YAML with proper formatting
+            yaml_content['metadata'] = metadata_dict
+
+            formatted_reasoning = {'reasoning': clean_yaml_format(output_text)}
+
             with open(yaml_output_path, 'w') as f:
-                yaml.dump(
-                    {**yaml_content, **formatted_reasoning},
-                    f,
-                    default_flow_style=False,
-                    sort_keys=False,
-                    allow_unicode=True,
-                    width=float("inf"),  # Prevent line wrapping
-                    indent=2
-                )
+                yaml.dump({**yaml_content, **formatted_reasoning}, f,
+                          default_flow_style=False, sort_keys=False, allow_unicode=True, width=float("inf"), indent=2)
+
             pbar.update(1)
             processed += 1
-            
-            # Stop after processing desired number of images
+
             if processed >= total_images:
                 break
         except Exception as e:
             pbar.write(f"Error processing {uid}: {e}")
             continue
-     
+
 print(f"\nSaved {processed} annotations to {yaml_output_dir}")

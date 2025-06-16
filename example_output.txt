@@ -1,6 +1,6 @@
 Reasoning:
   - Step:
-      Description: Assess the image quality.
+    Description: Assess the image quality.
     Action:
       - I am looking at the chest X-ray image.
       - The image appears to be clear and well-defined.
@@ -88,7 +88,8 @@ Reasoning:
       - There is no peribronchial cuffing.
       - There is no sign of pulmonary edema.
     Result: "There is no cardiac congestion."
-  - Step: Look for pleural effusion.
+  - Step: 
+    Description: Look for pleural effusion.
     Action:
       - I am looking for signs of pleural effusion in the chest X-ray.
       - I am looking at the right side of the chest for pleural effusion.
@@ -100,7 +101,8 @@ Reasoning:
       - There is no opacity in the left lower side of the chest.
       - There is no pleural effusion on the left side of the chest.
     Result: "There is no pleural effusion."
-  - Step: Look for pulmonary atelectasis.
+  - Step: 
+    Description: Look for pulmonary atelectasis.
     Action:
       - I am looking for signs of pulmonary atelectasis in the chest X-ray.
       - I am looking at the right lung for atelectasis.
@@ -110,7 +112,8 @@ Reasoning:
       - There is no opacity in the left lung.
       - The left lung appears to be fully expanded.
     Result: "There is no pulmonary atelectasis."
-  - Step: Look for pulmonary infiltrates.
+  - Step: 
+    Description: Look for pulmonary infiltrates.
     Action:
       - I am looking for signs of pulmonary infiltrates in the chest X-ray.
       - I am looking at the right lung for infiltrates.
@@ -120,7 +123,8 @@ Reasoning:
       - There is no opacity in the left lung.
       - The left lung appears to be clear.
     Result: "There are no pulmonary infiltrates."
-  - Step: Look for pneumothorax.
+  - Step: 
+    Description: Look for pneumothorax.
     Action:
       - I am looking for signs of pneumothorax in the chest X-ray.
       - I am looking at the right lung for pneumothorax.
@@ -131,7 +135,8 @@ Reasoning:
       - There is no evidence of pneumothorax on the left side.
       - There is no mediastinal shift.
     Result: "There is no pneumothorax."
-  - Step: Look for pathologies of the soft tissues.
+  - Step: 
+    Description: Look for pathologies of the soft tissues.
     Action:
       - I am looking for pathologies of the soft tissues in the chest X-ray.
       - I am looking at the right side of the chest for soft tissue pathologies.
@@ -139,7 +144,8 @@ Reasoning:
       - I am looking at the left side of the chest for soft tissue pathologies.
       - There are no abnormalities in the left side of the chest.
     Result: "There are no pathologies of the soft tissues."
-  - Step: Formulate a final assessment.
+  - Step: 
+    Description: Formulate a final assessment.
     Action:
       - I am summarizing the findings from the chest X-ray.
       - The image is of diagnostic quality.
