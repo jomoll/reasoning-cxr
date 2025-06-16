@@ -113,6 +113,20 @@ tokenizer = transformers.AutoTokenizer.from_pretrained(model_name, cache_dir='.'
 metadata_df = pd.read_csv(metadata_path)
 metadata_df.set_index("UID", inplace=True)
 
+# Add this after loading metadata_df but before the iteration loop
+target_uids_file = "target_uids.txt"
+if os.path.exists(target_uids_file):
+    with open(target_uids_file, 'r') as f:
+        target_uids = {line.strip() for line in f if line.strip()}
+    # Filter metadata to only include target UIDs
+    metadata_df = metadata_df[metadata_df.index.isin(target_uids)]
+    print(f"Found {len(metadata_df)} samples matching target UIDs")
+else:
+    print("No target_uids.txt found, will process all samples")
+
+# Update total_images to not exceed available samples
+total_images = min(total_images, len(metadata_df))
+
 # Define mappings
 cardio_map = {-1: "not assessable", 0: "normal", 1: "borderline", 2: "enlarged", 4: "massively enlarged"}
 other_map = {0: "none", 1: "mild", 2: "moderate", 3: "severe", 4: "very severe"}
