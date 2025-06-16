@@ -169,7 +169,7 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
             with torch.no_grad():
                 outputs = model.generate(
                     **inputs,
-                    max_new_tokens=2048,
+                    max_new_tokens=2248,
                     do_sample=True,
                     num_beams=4,
                     pad_token_id=tokenizer.eos_token_id
