@@ -5,18 +5,17 @@ import torch
 import yaml
 from shutil import copyfile
 from tqdm import tqdm 
+from datasets import load_dataset
 
 # constants
-version = str(1.2)
+version = str(2.0)
 metadata_path = "data/keno_1000/metadata.csv"
-image_dir = "data/keno_1000/data_png"
 yaml_output_dir = "data/keno_1000/annotations/v"+version
 template_path = "template_llama.yaml"
 model_name = "meta-llama/Llama-3.1-8B-Instruct"
 
-
 # Replace the iteration section
-total_images = 1000  # Number of images to process
+total_images = 10000  # Number of images to process
 processed = 0
 
 # Prompt
@@ -45,14 +44,14 @@ prompt_base = (
 
 def describe_row(row):
     parts = [f"Patient age {int(row['Age'])//365} years"]
-    parts.append(f"{cardio_map.get(row['cardiomegaly'], 'unknown')} cardiomegaly")
-    parts.append(f"{other_map.get(row['congestion'], 'unknown')} congestion")
-    parts.append(f"{other_map.get(row['pleural_effusion_right'], 'unknown')} right pleural effusion")
-    parts.append(f"{other_map.get(row['pleural_effusion_left'], 'unknown')} left pleural effusion")
-    parts.append(f"{other_map.get(row['pneumonic_infiltrates_right'], 'unknown')} right pneumonic infiltrates")
-    parts.append(f"{other_map.get(row['pneumonic_infiltrates_left'], 'unknown')} left pneumonic infiltrates")
-    parts.append(f"{other_map.get(row['atelectasis_right'], 'unknown')} right atelectasis")
-    parts.append(f"{other_map.get(row['atelectasis_left'], 'unknown')} left atelectasis")
+    parts.append(f"{cardio_map.get(row['HeartSize'], 'unknown')} cardiomegaly")
+    parts.append(f"{other_map.get(row['PulmonaryCongestion'], 'unknown')} pulmonary congestion")
+    parts.append(f"{other_map.get(row['PleuralEffusion_Right'], 'unknown')} right pleural effusion")
+    parts.append(f"{other_map.get(row['PleuralEffusion_Left'], 'unknown')} left pleural effusion")
+    parts.append(f"{other_map.get(row['PulmonaryOpacities_Right'], 'unknown')} right pulmonary opacities")
+    parts.append(f"{other_map.get(row['PulmonaryOpacities_Left'], 'unknown')} left pulmonary opacities")
+    parts.append(f"{other_map.get(row['Atelectasis_Right'], 'unknown')} right atelectasis")
+    parts.append(f"{other_map.get(row['Atelectasis_Left'], 'unknown')} left atelectasis")
     return "Clinical data: " + ", ".join(parts) + "."
 
 def clean_yaml_format(output_text):
@@ -105,23 +104,8 @@ def clean_yaml_format(output_text):
 model = transformers.AutoModelForCausalLM.from_pretrained(model_name, cache_dir='.', trust_remote_code=True, device_map="auto", torch_dtype=torch.bfloat16)
 tokenizer = transformers.AutoTokenizer.from_pretrained(model_name, cache_dir='.', trust_remote_code=True)
 
-# Load metadata
-metadata_df = pd.read_csv(metadata_path)
-metadata_df.set_index("UID", inplace=True)
-
-# Add this after loading metadata_df but before the iteration loop
-target_uids_file = "target_uids.txt"
-if os.path.exists(target_uids_file):
-    with open(target_uids_file, 'r') as f:
-        target_uids = {line.strip() for line in f if line.strip()}
-    # Filter metadata to only include target UIDs
-    metadata_df = metadata_df[metadata_df.index.isin(target_uids)]
-    print(f"Found {len(metadata_df)} samples matching target UIDs")
-else:
-    print("No target_uids.txt found, will process all samples")
-
-# Update total_images to not exceed available samples
-total_images = min(total_images, len(metadata_df))
+dataset = load_dataset("TLAIM/TAIX-Ray", name="default")["train"]
+metadata_df = pd.DataFrame(dataset)
 
 # Define mappings
 cardio_map = {-1: "not assessable", 0: "normal", 1: "borderline", 2: "enlarged", 4: "massively enlarged"}
@@ -135,18 +119,13 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
     # check if uid already in data/annotations/v1.0
     if os.path.exists(yaml_output_dir):
         existing_uids = {os.path.splitext(f)[0] for f in os.listdir(yaml_output_dir) if f.endswith('.yaml')}
-        metadata_df = metadata_df[~metadata_df.index.isin(existing_uids)]
     # Iterate through each row in the metadata DataFrame
-    for uid, row in metadata_df.iterrows():
-    
-        image_path = os.path.join(image_dir, f"{uid}.png")
+    for i, row in metadata_df.iterrows():
+        uid = row['UID']
+        if uid in existing_uids:
+            continue
         yaml_output_path = os.path.join(yaml_output_dir, f"{uid}.yaml")
-        
-        # Check if image exists
-        #if not os.path.exists(image_path):
-        #    print(f"Skipping {uid}: Image file not found.")
-        #    continue
-            
+
         try:
             # Copy template file
             copyfile(template_path, yaml_output_path)
@@ -183,7 +162,8 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
             metadata = row.to_dict()
             # Convert numpy types to native Python types for YAML serialization
             metadata = {k: v.item() if hasattr(v, 'item') else v for k, v in metadata.items()}
-
+            # remove image from dict
+            metadata.pop('Image', None)
             # Update YAML content while preserving structure
             yaml_content['image-type'] = "chest-x-ray"
             yaml_content['version'] = version

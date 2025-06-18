@@ -1,93 +1,178 @@
-# pip install accelerate
-from transformers import AutoProcessor, AutoModelForImageTextToText
+from datasets import Dataset, load_dataset
 from PIL import Image
-import requests
-import torch
 import os
 import yaml
-from datasets import Dataset
+from trl import SFTTrainer
+import torch
+from transformers import AutoProcessor, AutoModelForImageTextToText, BitsAndBytesConfig
+from peft import LoraConfig
+from trl import SFTConfig
 
-model_name = "google/medgemma-4b-it"
-image_dir = "data/keno_1000/data_png"
-label_dir = "data/keno_1000/annotations/v1.0"
-prompt_base = (
-            "Analyze this chest X-ray following these steps:\n" 
-            "1. Assess the image quality.\n" 
-            "2. Look for central venous catheter placement.\n"
-            "3. Look for endotracheal tube placement.\n"
-            "4. Look for nasogastric tube placement.\n"
-            "5. Look for chest tube placement.\n"
-            "6. Look for pacemaker placement.\n"
-            "7. Look for other devices.\n"
-            "8. Look for the heart size.\n"
-            "9. Look for mediastinal size and shift.\n"
-            "10. Look for cardiac congestion.\n"
-            "11. Look for pleural effusion.\n"
-            "12. Look for pulmonary atelectasis.\n"
-            "13. Look for pneumonic infiltrates.\n"
-            "14. Look for pneumothorax.\n"
-            "15. Look for soft tissue pathologies.\n"
-            "16. Formulate final assessment.\n\n"
-            "Use the exact format:\n" 
-            "Reasoning:\n" 
-            "  - Step:\n" 
-            "    Description: [Step]\n" 
-            "    Action:\n" 
-            "    - [Observation]\n" 
-            "    Result: [Conclusion]"
+system_message = "You are an expert radiologist."
+user_prompt = "You are given a chest X-ray image. Please assess different findings on the following scale: 0: none, 1: mild, 2: moderate, 3: severe, 4: very severe. The findings are: Heart Size, Pulmonary Congestion, Pleural Effusion Right, Pleural Effusion Left, Pulmonary Opacities Right, Pulmonary Opacities Left, Atelectasis Right, Atelectasis Left. Please use the following format for your response: " \
+"Heart Size: <value>, Pulmonary Congestion: <value>, Pleural Effusion Right: <value>, Pleural Effusion Left: <value>, Pulmonary Opacities Right: <value>, Pulmonary Opacities Left: <value>, Atelectasis Right: <value>, Atelectasis Left: <value>."
+
+# Convert dataset to OAI messages
+def format_data(sample):
+    return {
+        "messages": [
+            {
+                "role": "system",
+                "content": [{"type": "text", "text": system_message}],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": user_prompt,
+                    },
+                    {
+                        "type": "image",
+                        "image": sample["Image"],
+                    },
+                ],
+            },
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": "Heart Size:" + str(sample["HeartSize"]), "Pulmonary Congestion": str(sample["PulmonaryCongestion"]), "Pleural Effusion Right": str(sample["PleuralEffusion_Right"]), "Pleural Effusion Left": str(sample["PleuralEffusion_Left"]), "Pulmonary Opacities Right": str(sample["PulmonaryOpacities_Right"]), "Pulmonary Opacities Left": str(sample["PulmonaryOpacities_Left"]), "Atelectasis Right": str(sample["Atelectasis_Right"]), "Atelectasis Left": str(sample["Atelectasis_Left"])}],
+            },
+        ],
+    }
+
+def process_vision_info(messages: list[dict]) -> list[Image.Image]:
+    image_inputs = []
+    # Iterate through each conversation
+    for msg in messages:
+        # Get content (ensure it's a list)
+        content = msg.get("content", [])
+        if not isinstance(content, list):
+            content = [content]
+
+        # Check each content element for images
+        for element in content:
+            if isinstance(element, dict) and (
+                "image" in element or element.get("type") == "image"
+            ):
+                # Get the image and convert to RGB
+                if "image" in element:
+                    image = element["Image"]
+                else:
+                    image = element
+                image_inputs.append(image.convert("RGB"))
+    return image_inputs
+
+dataset = load_dataset("TLAIM/TAIX-Ray", name="default")["train"]
+dataset = [format_data(sample) for sample in dataset]
+
+# Hugging Face model id
+model_id = "google/gemma-3-4b-pt" # or `google/gemma-3-12b-pt`, `google/gemma-3-27-pt`
+
+# Check if GPU benefits from bfloat16
+if torch.cuda.get_device_capability()[0] < 8:
+    raise ValueError("GPU does not support bfloat16, please use a GPU that supports bfloat16.")
+
+# Define model init arguments
+model_kwargs = dict(
+    attn_implementation="eager", # Use "flash_attention_2" when running on Ampere or newer GPU
+    torch_dtype=torch.bfloat16, # What torch dtype to use, defaults to auto
+    device_map="auto", # Let torch decide how to load the model
 )
 
-def load_model(model_name=model_name):
-    model = AutoModelForImageTextToText.from_pretrained(
-        model_name,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-    )
-    processor = AutoProcessor.from_pretrained(model_name)
-    return model, processor
+# BitsAndBytesConfig int-4 config
+model_kwargs["quantization_config"] = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=model_kwargs["torch_dtype"],
+    bnb_4bit_quant_storage=model_kwargs["torch_dtype"],
+)
 
-def load_data(image_dir, label_dir, processor):
-    dataset = []
-    for filename in ["0a000b841142f0763421a9e15f00bd6aff96e70e4c11baddd8ccb27990fc311c.yaml"]:
-        if filename.endswith('.yaml'):
-            image_id = os.path.splitext(filename)[0]
-            image_path = os.path.join(image_dir, f"{image_id}.png")
-            if not os.path.exists(image_path):
-                continue
-                
-            # Load image and process
-            image = Image.open(image_path).convert("RGB")
-            messages = [
-                {
-                    "role": "system",
-                    "content": [{"type": "text", "text": "You are an expert radiologist."}]
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt_base},
-                        {"type": "image", "image": image}
-                    ]
-                }
-            ]
+# Load model and tokenizer
+model = AutoModelForImageTextToText.from_pretrained(model_id, **model_kwargs)
+processor = AutoProcessor.from_pretrained("google/gemma-3-4b-it")
 
-            inputs = processor.apply_chat_template(
-                messages, add_generation_prompt=True, tokenize=True,
-                return_dict=True, return_tensors="pt"
-            ).to(model.device, dtype=torch.bfloat16)
 
-            return inputs
+peft_config = LoraConfig(
+    lora_alpha=16,
+    lora_dropout=0.05,
+    r=16,
+    bias="none",
+    target_modules="all-linear",
+    task_type="CAUSAL_LM",
+    modules_to_save=[
+        "lm_head",
+        "embed_tokens",
+    ],
+)
 
-# Load processor & model
-model, processor = load_model(model_name)
-# Load dataset
-inputs = load_data(image_dir, label_dir, processor)
+args = SFTConfig(
+    output_dir="gemma-test1",     # directory to save and repository id
+    num_train_epochs=1,                         # number of training epochs
+    per_device_train_batch_size=1,              # batch size per device during training
+    gradient_accumulation_steps=4,              # number of steps before performing a backward/update pass
+    gradient_checkpointing=True,                # use gradient checkpointing to save memory
+    optim="adamw_torch_fused",                  # use fused adamw optimizer
+    logging_steps=5,                            # log every 5 steps
+    save_strategy="epoch",                      # save checkpoint every epoch
+    learning_rate=2e-4,                         # learning rate, based on QLoRA paper
+    bf16=True,                                  # use bfloat16 precision
+    max_grad_norm=0.3,                          # max gradient norm based on QLoRA paper
+    warmup_ratio=0.03,                          # warmup ratio based on QLoRA paper
+    lr_scheduler_type="constant",               # use constant learning rate scheduler
+    push_to_hub=True,                           # push model to hub
+    report_to="tensorboard",                    # report metrics to tensorboard
+    gradient_checkpointing_kwargs={
+        "use_reentrant": False
+    },  # use reentrant checkpointing
+    dataset_text_field="",                      # need a dummy field for collator
+    dataset_kwargs={"skip_prepare_dataset": True},  # important for collator
+)
+args.remove_unused_columns = False # important for collator
 
-input_len = inputs["input_ids"].shape[-1]
+# Create a data collator to encode text and image pairs
+def collate_fn(examples):
+    texts = []
+    images = []
+    for example in examples:
+        image_inputs = process_vision_info(example["messages"])
+        text = processor.apply_chat_template(
+            example["messages"], add_generation_prompt=False, tokenize=False
+        )
+        texts.append(text.strip())
+        images.append(image_inputs)
 
-with torch.inference_mode():
-    generation = model.generate(**inputs, max_new_tokens=200, do_sample=False)
-    generation = generation[0][input_len:]
+    # Tokenize the texts and process the images
+    batch = processor(text=texts, images=images, return_tensors="pt", padding=True)
 
-decoded = processor.decode(generation, skip_special_tokens=True)
-print(decoded)
+    # The labels are the input_ids, and we mask the padding tokens and image tokens in the loss computation
+    labels = batch["input_ids"].clone()
+
+    # Mask image tokens
+    image_token_id = [
+        processor.tokenizer.convert_tokens_to_ids(
+            processor.tokenizer.special_tokens_map["boi_token"]
+        )
+    ]
+    # Mask tokens for not being used in the loss computation
+    labels[labels == processor.tokenizer.pad_token_id] = -100
+    labels[labels == image_token_id] = -100
+    labels[labels == 262144] = -100
+
+    batch["labels"] = labels
+    return batch
+
+trainer = SFTTrainer(
+    model=model,
+    args=args,
+    train_dataset=dataset,
+    peft_config=peft_config,
+    processing_class=processor,
+    data_collator=collate_fn,
+)
+
+# Start training, the model will be automatically saved to the Hub and the output directory
+trainer.train()
+
+# Save the final model again to the Hugging Face Hub
+trainer.save_model()
