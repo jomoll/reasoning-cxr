@@ -60,7 +60,11 @@ def format_data(sample):
             },
             {
                 "role": "assistant",
-                "content": [{"type": "text", "text": "Heart Size:" + str(sample["HeartSize"]), "Pulmonary Congestion": str(sample["PulmonaryCongestion"]), "Pleural Effusion Right": str(sample["PleuralEffusion_Right"]), "Pleural Effusion Left": str(sample["PleuralEffusion_Left"]), "Pulmonary Opacities Right": str(sample["PulmonaryOpacities_Right"]), "Pulmonary Opacities Left": str(sample["PulmonaryOpacities_Left"]), "Atelectasis Right": str(sample["Atelectasis_Right"]), "Atelectasis Left": str(sample["Atelectasis_Left"])}],
+                "content": [
+                    {
+                        "type": "text", 
+                        "text": "Heart Size: " + str(sample["HeartSize"])+ ", Pulmonary Congestion: " + str(sample["PulmonaryCongestion"])+ ", Pleural Effusion Right: " + str(sample["PleuralEffusion_Right"])+ ", Pleural Effusion Left: "+str(sample["PleuralEffusion_Left"])+ ", Pulmonary Opacities Right: "+ str(sample["PulmonaryOpacities_Right"])+ ", Pulmonary Opacities Left: "+ str(sample["PulmonaryOpacities_Left"])+ ", Atelectasis Right: " + str(sample["Atelectasis_Right"])+ ", Atelectasis Left: "+ str(sample["Atelectasis_Left"])
+                    }]
             },
         ],
     }
@@ -88,7 +92,7 @@ def process_vision_info(messages: list[dict]) -> list[Image.Image]:
     return image_inputs
 
 dataset = load_dataset("TLAIM/TAIX-Ray", name="default")["train"]
-dataset = dataset.select(range(1000))
+dataset = dataset.select(range(1))
 dataset = [format_data(sample) for sample in dataset]
 print(f"Dataset size: {len(dataset)}")
 
@@ -107,7 +111,7 @@ peft_config = LoraConfig(
 
 args = SFTConfig(
     output_dir="gemma-test1",     # directory to save and repository id
-    num_train_epochs=1,                         # number of training epochs
+    num_train_epochs=100,                         # number of training epochs
     per_device_train_batch_size=1,              # batch size per device during training
     gradient_accumulation_steps=4,              # number of steps before performing a backward/update pass
     gradient_checkpointing=True,                # use gradient checkpointing to save memory
@@ -120,7 +124,7 @@ args = SFTConfig(
     warmup_ratio=0.03,                          # warmup ratio based on QLoRA paper
     lr_scheduler_type="constant",               # use constant learning rate scheduler
     push_to_hub=True,                           # push model to hub
-    report_to="tensorboard",                    # report metrics to tensorboard
+    report_to="wandb",                    # report metrics to tensorboard
     gradient_checkpointing_kwargs={
         "use_reentrant": False
     },  # use reentrant checkpointing

@@ -42,7 +42,7 @@ inputs = processor.apply_chat_template(
 input_len = inputs["input_ids"].shape[-1]
 
 with torch.inference_mode():
-    generation = model.generate(**inputs, max_new_tokens=2048, do_sample=False)
+    generation = model.generate(**inputs, max_new_tokens=128, do_sample=True, num_beams=5)
     generation = generation[0][input_len:]
 
 decoded = processor.decode(generation, skip_special_tokens=True)
