@@ -88,6 +88,7 @@ def process_vision_info(messages: list[dict]) -> list[Image.Image]:
     return image_inputs
 
 dataset = load_dataset("TLAIM/TAIX-Ray", name="default")["train"]
+dataset = dataset.select(range(1000))
 dataset = [format_data(sample) for sample in dataset]
 print(f"Dataset size: {len(dataset)}")
 
