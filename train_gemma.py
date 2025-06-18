@@ -7,10 +7,35 @@ import torch
 from transformers import AutoProcessor, AutoModelForImageTextToText, BitsAndBytesConfig
 from peft import LoraConfig
 from trl import SFTConfig
-
+# Hugging Face model id
+model_id = "google/gemma-3-4b-pt" # or `google/gemma-3-12b-pt`, `google/gemma-3-27-pt`
 system_message = "You are an expert radiologist."
 user_prompt = "You are given a chest X-ray image. Please assess different findings on the following scale: 0: none, 1: mild, 2: moderate, 3: severe, 4: very severe. The findings are: Heart Size, Pulmonary Congestion, Pleural Effusion Right, Pleural Effusion Left, Pulmonary Opacities Right, Pulmonary Opacities Left, Atelectasis Right, Atelectasis Left. Please use the following format for your response: " \
 "Heart Size: <value>, Pulmonary Congestion: <value>, Pleural Effusion Right: <value>, Pleural Effusion Left: <value>, Pulmonary Opacities Right: <value>, Pulmonary Opacities Left: <value>, Atelectasis Right: <value>, Atelectasis Left: <value>."
+# Check if GPU benefits from bfloat16
+if torch.cuda.get_device_capability()[0] < 8:
+    raise ValueError("GPU does not support bfloat16, please use a GPU that supports bfloat16.")
+
+# Define model init arguments
+model_kwargs = dict(
+    attn_implementation="eager", # Use "flash_attention_2" when running on Ampere or newer GPU
+    torch_dtype=torch.bfloat16, # What torch dtype to use, defaults to auto
+    device_map="auto", # Let torch decide how to load the model
+)
+
+# BitsAndBytesConfig int-4 config
+model_kwargs["quantization_config"] = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=model_kwargs["torch_dtype"],
+    bnb_4bit_quant_storage=model_kwargs["torch_dtype"],
+)
+
+# Load model and tokenizer
+model = AutoModelForImageTextToText.from_pretrained(model_id, **model_kwargs)
+processor = AutoProcessor.from_pretrained("google/gemma-3-4b-it")
+print(f"Model {model_id} loaded successfully.")
 
 # Convert dataset to OAI messages
 def format_data(sample):
@@ -64,34 +89,7 @@ def process_vision_info(messages: list[dict]) -> list[Image.Image]:
 
 dataset = load_dataset("TLAIM/TAIX-Ray", name="default")["train"]
 dataset = [format_data(sample) for sample in dataset]
-
-# Hugging Face model id
-model_id = "google/gemma-3-4b-pt" # or `google/gemma-3-12b-pt`, `google/gemma-3-27-pt`
-
-# Check if GPU benefits from bfloat16
-if torch.cuda.get_device_capability()[0] < 8:
-    raise ValueError("GPU does not support bfloat16, please use a GPU that supports bfloat16.")
-
-# Define model init arguments
-model_kwargs = dict(
-    attn_implementation="eager", # Use "flash_attention_2" when running on Ampere or newer GPU
-    torch_dtype=torch.bfloat16, # What torch dtype to use, defaults to auto
-    device_map="auto", # Let torch decide how to load the model
-)
-
-# BitsAndBytesConfig int-4 config
-model_kwargs["quantization_config"] = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_use_double_quant=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_compute_dtype=model_kwargs["torch_dtype"],
-    bnb_4bit_quant_storage=model_kwargs["torch_dtype"],
-)
-
-# Load model and tokenizer
-model = AutoModelForImageTextToText.from_pretrained(model_id, **model_kwargs)
-processor = AutoProcessor.from_pretrained("google/gemma-3-4b-it")
-
+print(f"Dataset size: {len(dataset)}")
 
 peft_config = LoraConfig(
     lora_alpha=16,
