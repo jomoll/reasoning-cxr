@@ -56,7 +56,7 @@ def process_vision_info(messages: list[dict]) -> list[Image.Image]:
             ):
                 # Get the image and convert to RGB
                 if "image" in element:
-                    image = element["Image"]
+                    image = element["image"]
                 else:
                     image = element
                 image_inputs.append(image.convert("RGB"))
@@ -160,7 +160,7 @@ def collate_fn(examples):
     labels[labels == 262144] = -100
 
     batch["labels"] = labels
-    return batch
+    return batch 
 
 trainer = SFTTrainer(
     model=model,
