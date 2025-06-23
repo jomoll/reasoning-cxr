@@ -37,37 +37,33 @@ model = AutoModelForImageTextToText.from_pretrained(model_id, **model_kwargs)
 processor = AutoProcessor.from_pretrained("google/gemma-3-4b-it")
 print(f"Model {model_id} loaded successfully.")
 
-# Convert dataset to OAI messages
+FINDINGS = [
+    "HeartSize",
+    "PulmonaryCongestion",
+    "PleuralEffusion_Right",
+    "PleuralEffusion_Left",
+    "PulmonaryOpacities_Right",
+    "PulmonaryOpacities_Left",
+    "Atelectasis_Right",
+    "Atelectasis_Left",
+]
+
+def format_labels_json(sample):
+    return str({finding: sample[finding.replace(' ', '').replace('-', '_')] for finding in FINDINGS})
+
 def format_data(sample):
     return {
         "messages": [
-            {
-                "role": "system",
-                "content": [{"type": "text", "text": system_message}],
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": user_prompt,
-                    },
-                    {
-                        "type": "image",
-                        "image": sample["Image"],
-                    },
-                ],
-            },
-            {
-                "role": "assistant",
-                "content": [
-                    {
-                        "type": "text", 
-                        "text": "Heart Size: " + str(sample["HeartSize"])+ ", Pulmonary Congestion: " + str(sample["PulmonaryCongestion"])+ ", Pleural Effusion Right: " + str(sample["PleuralEffusion_Right"])+ ", Pleural Effusion Left: "+str(sample["PleuralEffusion_Left"])+ ", Pulmonary Opacities Right: "+ str(sample["PulmonaryOpacities_Right"])+ ", Pulmonary Opacities Left: "+ str(sample["PulmonaryOpacities_Left"])+ ", Atelectasis Right: " + str(sample["Atelectasis_Right"])+ ", Atelectasis Left: "+ str(sample["Atelectasis_Left"])
-                    }]
-            },
-        ],
+            {"role": "system", "content": [{"type": "text", "text": system_message}]},
+            {"role": "user", "content": [
+                {"type": "text", "text": user_prompt},
+                {"type": "image", "image": sample["Image"]},
+            ]},
+            {"role": "assistant", "content": [{"type": "text", "text": format_labels_json(sample)}]},
+        ]
     }
+
+
 
 def process_vision_info(messages: list[dict]) -> list[Image.Image]:
     image_inputs = []
