@@ -22,11 +22,10 @@ user_prompt = (
     "You are given a chest X-ray image. Please assess different findings on the following scale: "
     "0: none, 1: mild, 2: moderate, 3: severe, 4: very severe. The findings are: "
     "Heart Size, Pulmonary Congestion, Pleural Effusion Right, Pleural Effusion Left, "
-    "Pulmonary Opacities Right, Pulmonary Opacities Left, Atelectasis Right, Atelectasis Left. "
-    "Please use the following format for your response: "
-    "Heart Size: <value>, Pulmonary Congestion: <value>, Pleural Effusion Right: <value>, "
-    "Pleural Effusion Left: <value>, Pulmonary Opacities Right: <value>, "
-    "Pulmonary Opacities Left: <value>, Atelectasis Right: <value>, Atelectasis Left: <value>."
+    "Pulmonary Opacities Right, Pulmonary Opacities Left, Atelectasis Right, Atelectasis Left.\n\n"
+    "Please provide a step-by-step reasoning of your observations from the image first, "
+    "and conclude with a final assessment in the following format:\n"
+    "{'Heart Size': <value>, ..., 'Atelectasis Left': <value>}."
 )
 
 FINDINGS = [
@@ -86,7 +85,8 @@ def format_reasoning(reasoning_steps):
 def format_data(sample):
     reasoning_text = format_reasoning(sample["Reasoning"])
     final_labels = format_labels_json(sample)
-    assistant_response = f"{reasoning_text}\n\nFinal assessment:\n{final_labels}"
+    assistant_response = f"{reasoning_text}\n\n--- END OF REASONING ---\n\nFinal assessment:\n{final_labels}"
+
     return {
         "messages": [
             {"role": "system", "content": [{"type": "text", "text": system_message}]},
@@ -221,6 +221,7 @@ inputs = processor.apply_chat_template(
 
 # Track position where generation starts
 input_len = inputs["input_ids"].shape[-1]
+print("🔢 Prompt tokens:", inputs["input_ids"].shape[-1])
 
 # Generate output
 with torch.inference_mode():
