@@ -8,7 +8,8 @@ import json
 import os
 
 # --- Constants ---
-model_id       = "jomoll/gemma-reason1"    # your fine-tuned model
+model_id       = "jomoll/gemma-reason1"   
+processor_id = "google/gemma-3-4b-it"
 dataset_id     = "jomoll/TAIX-reasoning-v2.1-cleaned"
 output_dir = "results"
 max_new_tokens = 2300
@@ -74,14 +75,14 @@ def process_vision_info(messages):
 
 # --- Load model + processor ---
 model     = AutoModelForImageTextToText.from_pretrained(model_id, device_map="auto", torch_dtype=torch.bfloat16)
-processor = AutoProcessor.from_pretrained(model_id)
-print(f"✅ Model `{model_id}` and processor loaded.")
+processor = AutoProcessor.from_pretrained(processor_id)
+print(f"✅ Model `{model_id}` and processor `{processor_id}`loaded.")
 model.eval()
 
 # --- Load validation split ---
 val_dataset = load_dataset(dataset_id, split="val")
 # only use the first x samples for quick testing
-val_dataset = val_dataset.select(range(3)) 
+val_dataset = val_dataset.select(range(1)) 
 print(f"📊 Validation dataset size: {len(val_dataset)} sample(s)")
 
 # --- Run evaluation ---
@@ -100,28 +101,26 @@ for sample in tqdm(val_dataset, desc="🚀 Starting evaluation..."):
         ]},
     ]
 
-    # 2) extract the image list exactly like collate_fn
-    images = process_vision_info(messages)  # returns [PIL.Image]
-
-    # 3) build the text prompt, but do NOT tokenize yet
-    text = processor.apply_chat_template(
+    # 1) raw prompt string
+    prompt = processor.apply_chat_template(
         messages,
         add_generation_prompt=True,
         tokenize=False
     ).strip()
 
-    # 4) now call the processor on BOTH modalities
+    # 2) get images list
+    imgs = process_vision_info(messages)
+
+    # 3) tokenize both modalities
     inputs = processor(
-        text=[text],        # list of one prompt
-        images=[images],    # list of one image‐list
+        text=[prompt],
+        images=[imgs],
         return_tensors="pt",
-        padding=True
-    ).to(model.device, dtype=torch.bfloat16)
+        padding=True,
+    ).to(model.device, torch.bfloat16)
 
-    # 5) measure prompt length
+    # 4) generate
     input_len = inputs["input_ids"].size(1)
-
-    # 6) generate
     with torch.inference_mode():
         out = model.generate(
             **inputs,
@@ -132,7 +131,7 @@ for sample in tqdm(val_dataset, desc="🚀 Starting evaluation..."):
                 pad_token_id=processor.tokenizer.pad_token_id
             )
         )
-    generated = out[0, input_len:]  # shape: [new_tokens]
+    generated = out[0, input_len:]
 
     # 7) decode & extract
     text_out = processor.decode(generated, skip_special_tokens=True)
@@ -158,15 +157,19 @@ for cat in FINDINGS:
     acc      = correct/total
     accs.append(acc)
     print(f"{cat:25s}: {acc:.3f}")
-
+# append per category accuracies to results
+cat_accs = {cat: f"{acc:.3f}" for cat, acc in zip(FINDINGS, accs)}
 print(f"\n🔢 Average Accuracy: {sum(accs)/len(accs):.3f}")
 print("\n✅ Evaluation complete!")
 
-# Save results to JSON file
+# --- Save everything ---
 os.makedirs(output_dir, exist_ok=True)
-results_file = os.path.join(output_dir, model_id.replace("/", "_") + "_eval_results.json")
-print(f"💾 Saving detailed outputs to {results_file}...")
-with open(results_file, "w") as f:
-    json.dump(results, f, indent=2)
-
-print("✅ Detailed outputs saved to eval_results.json")
+out_path = os.path.join(output_dir, f"{model_id.replace('/', '_')}_eval_results.json")
+print(f"💾 Saving detailed outputs to {out_path}...")
+with open(out_path, "w") as fp:
+    json.dump({
+        "per_category_accuracy": f"{cat_accs}",
+        "average_accuracy": f"{sum(accs)/len(accs):.3f}",
+        "detailed_results": results
+    }, fp, indent=2)
+print(f"✅ Detailed outputs saved to {out_path}")
