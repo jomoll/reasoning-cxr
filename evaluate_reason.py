@@ -4,6 +4,7 @@ from datasets import load_dataset
 from transformers import AutoProcessor, AutoModelForImageTextToText, GenerationConfig
 import re, ast
 from tqdm import tqdm
+import json
 
 # --- Constants ---
 model_id       = "jomoll/gemma-reason1"    # your fine-tuned model
@@ -61,8 +62,10 @@ print(f"📊 Validation dataset size: {len(val_dataset)} sample(s)")
 # --- Run evaluation ---
 y_true = {c: [] for c in FINDINGS}
 y_pred = {c: [] for c in FINDINGS}
+results = []
 
 for sample in tqdm(val_dataset, desc="🚀 Starting evaluation..."):
+    uid = sample["UID"]
     # 1) format the chat messages
     messages = [
         {"role":"system", "content":[{"type":"text","text":system_message}]},
@@ -110,6 +113,12 @@ for sample in tqdm(val_dataset, desc="🚀 Starting evaluation..."):
     text_out = processor.decode(generated, skip_special_tokens=True)
     pred = extract_final_assessment(text_out)
 
+    results.append({
+        "UID": uid,
+        "ground_truth_assessment": {k: sample[k] for k in FINDINGS},
+        "predicted_assessment": pred,
+        "full_output": text_out,
+    })
     # 8) record predictions
     for cat in FINDINGS:
         y_true[cat].append(sample[cat])
@@ -127,3 +136,7 @@ for cat in FINDINGS:
 
 print(f"\n🔢 Average Accuracy: {sum(accs)/len(accs):.3f}")
 print("\n✅ Evaluation complete!")
+with open("eval_results.json", "w") as f:
+    json.dump(results, f, indent=2)
+
+print("✅ Detailed outputs saved to eval_results.json")
