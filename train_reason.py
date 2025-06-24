@@ -20,13 +20,37 @@ dataset_id = "jomoll/TAIX-reasoning-v2.1"
 
 system_message = "You are an expert radiologist."
 user_prompt = (
-    "You are given a chest X-ray image. Please assess different findings on the following scale: "
-    "0: none, 1: mild, 2: moderate, 3: severe, 4: very severe. The findings are: "
-    "Heart Size, Pulmonary Congestion, Pleural Effusion Right, Pleural Effusion Left, "
-    "Pulmonary Opacities Right, Pulmonary Opacities Left, Atelectasis Right, Atelectasis Left.\n\n"
-    "Please provide a step-by-step reasoning of your observations from the image first, "
-    "and conclude with a final assessment in the following format:\n"
-    "{'Heart Size': <value>, ..., 'Atelectasis Left': <value>}."
+    "You are given a chest X-ray image. Please assess different findings on the following scales:\n"
+    "- Heart Size: 0 = normal, 1 = borderline, 2 = enlarged, 3 = severely enlarged, 4 = massively enlarged\n"
+    "- All others: 0 = none, 1 = mild, 2 = moderate, 3 = severe, 4 = very severe\n\n"
+    "The findings to report are:\n"
+    "  • Heart Size\n"
+    "  • Pulmonary Congestion\n"
+    "  • Pleural Effusion Right\n"
+    "  • Pleural Effusion Left\n"
+    "  • Pulmonary Opacities Right\n"
+    "  • Pulmonary Opacities Left\n"
+    "  • Atelectasis Right\n"
+    "  • Atelectasis Left\n\n"
+    "First, provide a step-by-step reasoning under the header “Reasoning:” using this exact template for each step:\n"
+    "Reasoning:\n"
+    "  - Step 1:\n"
+    "      Description: <brief description>\n"
+    "      Action:\n"
+    "        - <what you looked at>\n"
+    "        - <what you concluded>\n"
+    "      Result: <what you found>\n"
+    "  - Step 2: …\n"
+    "  …\n"
+    "  - Step N: Formulate a final assessment.\n\n"
+    "After your last reasoning step, include exactly this sentinel line (no extra text):\n"
+    "```text\n"
+    "--- END OF REASONING ---\n"
+    "Final assessment:\n"
+    "``` \n"
+    "Then output only the final assessment JSON, e.g.:\n"
+    "{'Heart Size': 2, 'Pulmonary Congestion': 1, … 'Atelectasis Left': 0}\n\n"
+    "Once you print that JSON, immediately stop and do not generate any further text."
 )
 
 FINDINGS = [
@@ -138,8 +162,8 @@ peft_config = LoraConfig(
 
 # === Training Configuration ===
 args = SFTConfig(
-    output_dir="gemma-reason2",
-    num_train_epochs=2,
+    output_dir="gemma-reason1",
+    num_train_epochs=1,
     per_device_train_batch_size=1,
     gradient_accumulation_steps=4,
     gradient_checkpointing=True,
