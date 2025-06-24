@@ -2,6 +2,7 @@ from transformers import AutoProcessor, AutoModelForImageTextToText, GenerationC
 from datasets import load_dataset
 import torch
 from PIL import Image
+import json
 
 # === Model and Prompt ===
 model_id = "jomoll/gemma-reason1"
@@ -11,12 +12,23 @@ user_prompt = (
     "You are given a chest X-ray image. Please assess different findings on the following scale: "
     "0: none, 1: mild, 2: moderate, 3: severe, 4: very severe. The findings are: "
     "Heart Size, Pulmonary Congestion, Pleural Effusion Right, Pleural Effusion Left, "
-    "Pulmonary Opacities Right, Pulmonary Opacities Left, Atelectasis Right, Atelectasis Left. "
-    "Please use the following format for your response: "
-    "Heart Size: <value>, Pulmonary Congestion: <value>, Pleural Effusion Right: <value>, "
-    "Pleural Effusion Left: <value>, Pulmonary Opacities Right: <value>, "
-    "Pulmonary Opacities Left: <value>, Atelectasis Right: <value>, Atelectasis Left: <value>."
+    "Pulmonary Opacities Right, Pulmonary Opacities Left, Atelectasis Right, Atelectasis Left.\n\n"
+    "Please provide a step-by-step reasoning of your observations from the image first, "
+    "and conclude with a final assessment in the following format:\n"
+    "{'Heart Size': <value>, ..., 'Atelectasis Left': <value>}."
 )
+
+FINDINGS = [
+    "HeartSize",
+    "PulmonaryCongestion",
+    "PleuralEffusion_Right",
+    "PleuralEffusion_Left",
+    "PulmonaryOpacities_Right",
+    "PulmonaryOpacities_Left",
+    "Atelectasis_Right",
+    "Atelectasis_Left",
+]
+
 
 # === Load model and processor ===
 model = AutoModelForImageTextToText.from_pretrained(
@@ -46,7 +58,8 @@ def format_reasoning(reasoning_steps):
 
 
 def format_data(sample):
-    reasoning_text = format_reasoning(sample["Reasoning"])
+    reasoning_data = json.loads(sample["Reasoning"])
+    reasoning_text = format_reasoning(reasoning_data)
     final_labels = format_labels_json(sample)
     assistant_response = f"{reasoning_text}\n\n--- END OF REASONING ---\n\nFinal assessment:\n{final_labels}"
 
@@ -74,10 +87,10 @@ def process_vision_info(messages):
                 image_inputs.append(image.convert("RGB"))
     return image_inputs
 
-# === Load reasoning-enhanced dataset ===
-dataset = load_dataset("jomoll/TAIX-reasoning-v2.1")["train"]
-eval_sample = dataset[-1]
-eval_example = format_data(eval_sample)
+# === Load and Prepare Dataset ===
+raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1")["val"]
+
+eval_example = format_data(raw_datasets[1])  # pick one for evaluation
 eval_messages = eval_example["messages"]
 
 
@@ -98,7 +111,7 @@ print("🔢 Prompt tokens:", inputs["input_ids"].shape[-1])
 with torch.inference_mode():
     generation = model.generate(
         **inputs,
-        max_new_tokens=2248,
+        max_new_tokens=2500,
         do_sample=False,
         num_beams=5,
         generation_config=GenerationConfig(pad_token_id=processor.tokenizer.pad_token_id)

@@ -10,6 +10,7 @@ from transformers import (
 )
 from trl import SFTTrainer, SFTConfig
 from peft import LoraConfig
+import json
 
 
 # === Constants & Model Config ===
@@ -83,7 +84,8 @@ def format_reasoning(reasoning_steps):
 
 
 def format_data(sample):
-    reasoning_text = format_reasoning(sample["Reasoning"])
+    reasoning_data = json.loads(sample["Reasoning"])
+    reasoning_text = format_reasoning(reasoning_data)    
     final_labels = format_labels_json(sample)
     assistant_response = f"{reasoning_text}\n\n--- END OF REASONING ---\n\nFinal assessment:\n{final_labels}"
 
@@ -113,17 +115,13 @@ def process_vision_info(messages):
 
 
 # === Load and Prepare Dataset ===
-dataset = load_dataset("jomoll/TAIX-reasoning-v2.1")["train"]
+raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1")
+train_raw = raw_datasets["train"]
+val_raw = raw_datasets["val"]
 
-# Use all but the last sample for training
-train_dataset = dataset.select(range(len(dataset) - 1))
-
-# Use the last sample for evaluation
-eval_sample = dataset[-1]
-# Format the dataset
-train_dataset = [format_data(sample) for sample in train_dataset]
-eval_example = format_data(eval_sample)
-print(f"📊 Dataset size: {len(dataset)} sample(s)")
+train_dataset = [format_data(sample) for sample in train_raw]
+eval_example = format_data(val_raw[0])  # pick one for evaluation
+print(f"📊 Training dataset size: {len(train_dataset)} sample(s)")
 
 
 # === PEFT Configuration ===
@@ -140,8 +138,8 @@ peft_config = LoraConfig(
 
 # === Training Configuration ===
 args = SFTConfig(
-    output_dir="gemma-reason1",
-    num_train_epochs=1,
+    output_dir="gemma-reason2",
+    num_train_epochs=2,
     per_device_train_batch_size=1,
     gradient_accumulation_steps=4,
     gradient_checkpointing=True,
