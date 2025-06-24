@@ -136,7 +136,7 @@ for cat in FINDINGS:
 
 print(f"\n🔢 Average Accuracy: {sum(accs)/len(accs):.3f}")
 print("\n✅ Evaluation complete!")
-with open(f"{model_id}.json")
+with open(f"{model_id}.json") as f:
     json.dump(results, f, indent=2)
 
 print("✅ Detailed outputs saved to eval_results.json")
