@@ -139,7 +139,7 @@ def process_vision_info(messages):
 
 
 # === Load and Prepare Dataset ===
-raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1")
+raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1-cleaned")
 train_raw = raw_datasets["train"]
 val_raw = raw_datasets["val"]
 

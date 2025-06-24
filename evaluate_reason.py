@@ -9,7 +9,7 @@ import os
 
 # --- Constants ---
 model_id       = "jomoll/gemma-reason1"    # your fine-tuned model
-dataset_id     = "jomoll/TAIX-reasoning-v2.1"
+dataset_id     = "jomoll/TAIX-reasoning-v2.1-cleaned"
 output_dir = "results"
 max_new_tokens = 2300
 system_message = "You are an expert radiologist."
