@@ -5,11 +5,13 @@ from transformers import AutoProcessor, AutoModelForImageTextToText, GenerationC
 import re, ast
 from tqdm import tqdm
 import json
+import os
 
 # --- Constants ---
-model_id       = "jomoll/gemma-reason2"    # your fine-tuned model
+model_id       = "jomoll/gemma-reason1"    # your fine-tuned model
 dataset_id     = "jomoll/TAIX-reasoning-v2.1"
-max_new_tokens = 2248
+output_dir = "results"
+max_new_tokens = 2300
 system_message = "You are an expert radiologist."
 
 user_prompt = (
@@ -159,7 +161,12 @@ for cat in FINDINGS:
 
 print(f"\n🔢 Average Accuracy: {sum(accs)/len(accs):.3f}")
 print("\n✅ Evaluation complete!")
-with open(f"{model_id}.json") as f:
+
+# Save results to JSON file
+os.makedirs(output_dir, exist_ok=True)
+results_file = os.path.join(output_dir, model_id.replace("/", "_") + "_eval_results.json")
+print(f"💾 Saving detailed outputs to {results_file}...")
+with open(results_file, "w") as f:
     json.dump(results, f, indent=2)
 
 print("✅ Detailed outputs saved to eval_results.json")
