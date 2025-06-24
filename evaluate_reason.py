@@ -7,7 +7,7 @@ from tqdm import tqdm
 import json
 
 # --- Constants ---
-model_id       = "jomoll/gemma-reason1"    # your fine-tuned model
+model_id       = "jomoll/gemma-reason2"    # your fine-tuned model
 dataset_id     = "jomoll/TAIX-reasoning-v2.1"
 max_new_tokens = 2248
 system_message = "You are an expert radiologist."
@@ -136,7 +136,7 @@ for cat in FINDINGS:
 
 print(f"\n🔢 Average Accuracy: {sum(accs)/len(accs):.3f}")
 print("\n✅ Evaluation complete!")
-with open("eval_results.json", "w") as f:
+with open(f"{model_id}.json")
     json.dump(results, f, indent=2)
 
 print("✅ Detailed outputs saved to eval_results.json")
