@@ -54,6 +54,8 @@ model.eval()
 
 # --- Load validation split ---
 val_dataset = load_dataset(dataset_id, split="val")
+# only use the first x samples for quick testing
+val_dataset = val_dataset.select(range(3)) 
 print(f"📊 Validation dataset size: {len(val_dataset)} sample(s)")
 
 # --- Run evaluation ---
