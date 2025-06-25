@@ -10,10 +10,11 @@ import os
 # --- Constants ---
 model_id       = "jomoll/gemma-reason2"   
 processor_id   = "google/gemma-3-4b-it"
-dataset_id     = "jomoll/TAIX-reasoning-v2.1-cleaned"
+dataset_id     = "TLAIM/TAIX-Ray"
 output_dir     = "results"
 max_new_tokens = 2300
-num_samples    = 10
+NUM_SAMPLES    = 3
+NUM_BEAMS      = 5  
 system_message = "You are an expert radiologist."
 
 user_prompt = (
@@ -56,41 +57,7 @@ FINDINGS = [
 ]
 
 # --- Helpers ---
-def extract_final_assessment(text):
-    m = re.search(r"Final assessment:\s*(\{.*\})", text, flags=re.DOTALL)
-    if not m: return {}
-    try:
-        # unify quotes then parse
-        return ast.literal_eval(m.group(1))
-    except:
-        return {}
-
-# === Data Formatting Functions ===
-def format_labels_json(sample):
-    return str({finding: sample[finding] for finding in FINDINGS})
-
-
-def format_reasoning(reasoning_steps):
-    lines = ["Reasoning:"]
-    for i, step in enumerate(reasoning_steps):
-        s = step["Step"]
-        lines.append(f"Step {i+1}:")
-        lines.append(f"Description: {s.get('Description', '')}")
-        lines.append("Action:")
-        for a in s.get("Action", []):
-            lines.append(f"- {a}")
-        lines.append(f"Result: {s.get('Result', '')}\n")
-    return "\n".join(lines)
-
-
-
-
-def format_data(sample):
-    reasoning_data = json.loads(sample["Reasoning"])
-    reasoning_text = format_reasoning(reasoning_data)    
-    final_labels = format_labels_json(sample)
-    assistant_response = f"{reasoning_text}\n\n--- END OF REASONING ---\n\nFinal assessment:\n{final_labels}"
-
+def format_data_val(sample):
     return {
         "messages": [
             {"role": "system", "content": [{"type": "text", "text": system_message}]},
@@ -100,11 +67,9 @@ def format_data(sample):
                     {"type": "text", "text": user_prompt},
                     {"type": "image", "image": sample["Image"]},
                 ],
-            },
-            {"role": "assistant", "content": [{"type": "text", "text": assistant_response}]},
+            }
         ]
     }
-
 
 # --- Load model + processor ---
 model     = AutoModelForImageTextToText.from_pretrained(model_id, device_map="auto", torch_dtype=torch.bfloat16)
@@ -115,7 +80,7 @@ model.eval()
 # --- Load validation split ---
 val_dataset_raw = load_dataset(dataset_id, split="val")
 # only use the first x samples for quick testing
-val_dataset_raw = val_dataset_raw.select(range(num_samples)) 
+val_dataset_raw = val_dataset_raw.select(range(NUM_SAMPLES)) 
 
 print(f"📊 Validation dataset size: {len(val_dataset_raw)} sample(s)")
 
@@ -127,7 +92,7 @@ results = []
 for sample in tqdm(val_dataset_raw, desc="🚀 Starting evaluation..."):
     uid = sample["UID"]
     # 0) format data
-    sample_formatted = format_data(sample)
+    sample_formatted = format_data_val(sample)
     eval_messages = sample_formatted["messages"]
     # 1) raw prompt string
     inputs = processor.apply_chat_template(
@@ -145,7 +110,7 @@ for sample in tqdm(val_dataset_raw, desc="🚀 Starting evaluation..."):
             **inputs,
             max_new_tokens=max_new_tokens,
             do_sample=False,
-            num_beams=1,
+            num_beams=NUM_BEAMS,
             generation_config=GenerationConfig(
                 pad_token_id=processor.tokenizer.pad_token_id
             )

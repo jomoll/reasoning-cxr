@@ -107,7 +107,7 @@ def format_reasoning(reasoning_steps):
 
 
 
-def format_data(sample):
+def format_data_train(sample):
     reasoning_data = json.loads(sample["Reasoning"])
     reasoning_text = format_reasoning(reasoning_data)    
     final_labels = format_labels_json(sample)
@@ -127,6 +127,20 @@ def format_data(sample):
         ]
     }
 
+def format_data_val(sample):
+    return {
+        "messages": [
+            {"role": "system", "content": [{"type": "text", "text": system_message}]},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_prompt},
+                    {"type": "image", "image": sample["Image"]},
+                ],
+            }
+        ]
+    }
+
 
 def process_vision_info(messages):
     image_inputs = []
@@ -143,9 +157,15 @@ raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1-cleaned")
 train_raw = raw_datasets["train"]
 val_raw = raw_datasets["val"]
 
-train_dataset = [format_data(sample) for sample in train_raw]
-eval_example = format_data(val_raw[0])  # pick one for evaluation
+# Limit the number of samples for quick testing
+NUM_SAMPLES = 3
+train_raw = train_raw.select(range(NUM_SAMPLES))
+val_raw = val_raw.select(range(NUM_SAMPLES))
+
+train_dataset = [format_data_train(sample) for sample in train_raw]
+eval_dataset = [format_data_val(sample) for sample in val_raw]
 print(f"📊 Training dataset size: {len(train_dataset)} sample(s)")
+print(f"📊 Evaluation dataset size: {len(eval_dataset)} sample(s)")
 
 
 # === PEFT Configuration ===
@@ -162,20 +182,21 @@ peft_config = LoraConfig(
 
 # === Training Configuration ===
 args = SFTConfig(
-    output_dir="gemma-reason3",
-    num_train_epochs=3,
+    output_dir="gemma-reason10",
+    num_train_epochs=10,
     per_device_train_batch_size=1,
-    gradient_accumulation_steps=4,
+    gradient_accumulation_steps=16,
     gradient_checkpointing=True,
     gradient_checkpointing_kwargs={"use_reentrant": False},
     optim="adamw_torch_fused",
     learning_rate=2e-4,
     max_grad_norm=0.3,
-    warmup_ratio=0.03,
-    lr_scheduler_type="constant",
+    warmup_ratio=0.05,
+    lr_scheduler_type="cosine",
     bf16=True,
     logging_steps=5,
-    save_strategy="no",
+    eval_strategy="epoch",
+    save_strategy="epoch",
     push_to_hub=True,
     report_to="wandb",
     dataset_text_field="",
@@ -195,17 +216,42 @@ def collate_fn(examples):
 
     batch = processor(text=texts, images=images, return_tensors="pt", padding=True)
     labels = batch["input_ids"].clone()
-
-    # Mask irrelevant tokens
-    image_token_id = [
-        processor.tokenizer.convert_tokens_to_ids(
-            processor.tokenizer.special_tokens_map.get("boi_token", "<|image|>")
-        )
-    ]
+    
+    # Mask all tokens by default
+    labels.fill_(-100)
+    
+    for i, ex in enumerate(examples):
+        # Directly extract the assistant's text from the message content
+        assistant_text = ex["messages"][-1]["content"][0]["text"]
+        
+        # Find where the assistant message starts in the full sequence
+        full_text = texts[i]
+        assistant_start = full_text.find(assistant_text)
+        if assistant_start != -1:
+            # Tokenize the prefix to find start position
+            prefix_text = full_text[:assistant_start]
+            prefix_tokens = processor.tokenizer(prefix_text, add_special_tokens=False)
+            start_idx = len(prefix_tokens.input_ids)
+            
+            # Tokenize assistant text to find length
+            assistant_tokens = processor.tokenizer(assistant_text, add_special_tokens=False)
+            end_idx = start_idx + len(assistant_tokens.input_ids)
+            
+            # Make sure we don't go beyond sequence length
+            if end_idx > labels.shape[1]:
+                end_idx = labels.shape[1]
+                
+            # Only unmask the assistant tokens
+            labels[i, start_idx:end_idx] = batch["input_ids"][i, start_idx:end_idx]
+    
+    # Still mask special tokens within the assistant response
+    image_token_id = processor.tokenizer.convert_tokens_to_ids(
+        processor.tokenizer.special_tokens_map.get("boi_token", "<|image|>")
+    )
     labels[labels == processor.tokenizer.pad_token_id] = -100
     labels[labels == image_token_id] = -100
-    labels[labels == 262144] = -100  # Just in case boi_token resolves to this
-
+    labels[labels == 262144] = -100  # Fallback for image token
+    
     batch["labels"] = labels
     return batch
 
@@ -215,6 +261,7 @@ trainer = SFTTrainer(
     model=model,
     args=args,
     train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
     peft_config=peft_config,
     processing_class=processor,
     data_collator=collate_fn,
@@ -230,7 +277,7 @@ print("✅ Training complete and model saved.")
 print("\n🔍 Running evaluation on a single sample from the val split...")
 
 # Reformat eval message (reuse same logic as training)
-eval_messages = eval_example["messages"]
+eval_messages = eval_dataset[0]["messages"]
 
 # Tokenize with generation prompt
 inputs = processor.apply_chat_template(
