@@ -78,14 +78,6 @@ def format_data(sample):
     }
 
 
-def process_vision_info(messages):
-    image_inputs = []
-    for msg in messages:
-        for item in msg.get("content", []):
-            if isinstance(item, dict) and item.get("type") == "image":
-                image = item["image"]
-                image_inputs.append(image.convert("RGB"))
-    return image_inputs
 
 # === Load and Prepare Dataset ===
 raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1")["val"]

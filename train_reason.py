@@ -21,7 +21,7 @@ dataset_id = "jomoll/TAIX-reasoning-v2.1"
 system_message = "You are an expert radiologist."
 user_prompt = (
     "You are given a chest X-ray image. Please assess different findings on the following scales:\n"
-    "- Heart Size: 0 = normal, 1 = borderline, 2 = enlarged, 3 = severely enlarged, 4 = massively enlarged\n"
+    "- Heart Size: 0 = normal, 1 = borderline, 2 = enlarged, 4 = massively enlarged\n"
     "- All others: 0 = none, 1 = mild, 2 = moderate, 3 = severe, 4 = very severe\n\n"
     "The findings to report are:\n"
     "  • Heart Size\n"
@@ -162,8 +162,8 @@ peft_config = LoraConfig(
 
 # === Training Configuration ===
 args = SFTConfig(
-    output_dir="gemma-reason1",
-    num_train_epochs=1,
+    output_dir="gemma-reason3",
+    num_train_epochs=3,
     per_device_train_batch_size=1,
     gradient_accumulation_steps=4,
     gradient_checkpointing=True,
@@ -227,7 +227,7 @@ trainer.save_model()
 print("✅ Training complete and model saved.")
 
 # === Evaluate on Held-Out Sample ===
-print("\n🔍 Running evaluation on held-out sample...")
+print("\n🔍 Running evaluation on a single sample from the val split...")
 
 # Reformat eval message (reuse same logic as training)
 eval_messages = eval_example["messages"]

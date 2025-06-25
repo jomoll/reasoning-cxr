@@ -8,16 +8,17 @@ import json
 import os
 
 # --- Constants ---
-model_id       = "jomoll/gemma-reason1"   
-processor_id = "google/gemma-3-4b-it"
+model_id       = "jomoll/gemma-reason2"   
+processor_id   = "google/gemma-3-4b-it"
 dataset_id     = "jomoll/TAIX-reasoning-v2.1-cleaned"
-output_dir = "results"
+output_dir     = "results"
 max_new_tokens = 2300
+num_samples    = 10
 system_message = "You are an expert radiologist."
 
 user_prompt = (
     "You are given a chest X-ray image. Please assess different findings on the following scales:\n"
-    "- Heart Size: 0 = normal, 1 = borderline, 2 = enlarged, 3 = severely enlarged, 4 = massively enlarged\n"
+    "- Heart Size: 0 = normal, 1 = borderline, 2 = enlarged, 4 = massively enlarged\n"
     "- All others: 0 = none, 1 = mild, 2 = moderate, 3 = severe, 4 = very severe\n\n"
     "The findings to report are:\n"
     "  • Heart Size\n"
@@ -64,14 +65,46 @@ def extract_final_assessment(text):
     except:
         return {}
 
-def process_vision_info(messages):
-    image_inputs = []
-    for msg in messages:
-        for item in msg.get("content", []):
-            if isinstance(item, dict) and item.get("type") == "image":
-                image = item["image"]
-                image_inputs.append(image.convert("RGB"))
-    return image_inputs
+# === Data Formatting Functions ===
+def format_labels_json(sample):
+    return str({finding: sample[finding] for finding in FINDINGS})
+
+
+def format_reasoning(reasoning_steps):
+    lines = ["Reasoning:"]
+    for i, step in enumerate(reasoning_steps):
+        s = step["Step"]
+        lines.append(f"Step {i+1}:")
+        lines.append(f"Description: {s.get('Description', '')}")
+        lines.append("Action:")
+        for a in s.get("Action", []):
+            lines.append(f"- {a}")
+        lines.append(f"Result: {s.get('Result', '')}\n")
+    return "\n".join(lines)
+
+
+
+
+def format_data(sample):
+    reasoning_data = json.loads(sample["Reasoning"])
+    reasoning_text = format_reasoning(reasoning_data)    
+    final_labels = format_labels_json(sample)
+    assistant_response = f"{reasoning_text}\n\n--- END OF REASONING ---\n\nFinal assessment:\n{final_labels}"
+
+    return {
+        "messages": [
+            {"role": "system", "content": [{"type": "text", "text": system_message}]},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_prompt},
+                    {"type": "image", "image": sample["Image"]},
+                ],
+            },
+            {"role": "assistant", "content": [{"type": "text", "text": assistant_response}]},
+        ]
+    }
+
 
 # --- Load model + processor ---
 model     = AutoModelForImageTextToText.from_pretrained(model_id, device_map="auto", torch_dtype=torch.bfloat16)
@@ -80,44 +113,30 @@ print(f"✅ Model `{model_id}` and processor `{processor_id}`loaded.")
 model.eval()
 
 # --- Load validation split ---
-val_dataset = load_dataset(dataset_id, split="val")
+val_dataset_raw = load_dataset(dataset_id, split="val")
 # only use the first x samples for quick testing
-val_dataset = val_dataset.select(range(1)) 
-print(f"📊 Validation dataset size: {len(val_dataset)} sample(s)")
+val_dataset_raw = val_dataset_raw.select(range(num_samples)) 
+
+print(f"📊 Validation dataset size: {len(val_dataset_raw)} sample(s)")
 
 # --- Run evaluation ---
 y_true = {c: [] for c in FINDINGS}
 y_pred = {c: [] for c in FINDINGS}
 results = []
 
-for sample in tqdm(val_dataset, desc="🚀 Starting evaluation..."):
+for sample in tqdm(val_dataset_raw, desc="🚀 Starting evaluation..."):
     uid = sample["UID"]
-    # 1) format the chat messages
-    messages = [
-        {"role":"system", "content":[{"type":"text","text":system_message}]},
-        {"role":"user",   "content":[
-            {"type":"text","text":user_prompt},
-            {"type":"image","image":sample["Image"].convert("RGB")},
-        ]},
-    ]
-
+    # 0) format data
+    sample_formatted = format_data(sample)
+    eval_messages = sample_formatted["messages"]
     # 1) raw prompt string
-    prompt = processor.apply_chat_template(
-        messages,
+    inputs = processor.apply_chat_template(
+        eval_messages,
         add_generation_prompt=True,
-        tokenize=False
-    ).strip()
-
-    # 2) get images list
-    imgs = process_vision_info(messages)
-
-    # 3) tokenize both modalities
-    inputs = processor(
-        text=[prompt],
-        images=[imgs],
-        return_tensors="pt",
-        padding=True,
-    ).to(model.device, torch.bfloat16)
+        tokenize=True,
+        return_dict=True,
+        return_tensors="pt"
+    ).to(model.device, dtype=torch.bfloat16)
 
     # 4) generate
     input_len = inputs["input_ids"].size(1)
@@ -126,7 +145,7 @@ for sample in tqdm(val_dataset, desc="🚀 Starting evaluation..."):
             **inputs,
             max_new_tokens=max_new_tokens,
             do_sample=False,
-            num_beams=5,
+            num_beams=1,
             generation_config=GenerationConfig(
                 pad_token_id=processor.tokenizer.pad_token_id
             )
