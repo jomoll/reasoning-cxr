@@ -159,7 +159,6 @@ val_raw = raw_datasets["val"]
 
 # Limit the number of samples for quick testing
 NUM_SAMPLES = 3
-train_raw = train_raw.select(range(NUM_SAMPLES))
 val_raw = val_raw.select(range(NUM_SAMPLES))
 
 train_dataset = [format_data_train(sample) for sample in train_raw]

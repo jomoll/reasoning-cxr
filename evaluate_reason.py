@@ -57,6 +57,16 @@ FINDINGS = [
 ]
 
 # --- Helpers ---
+def extract_final_assessment(text):
+    m = re.search(r"Final assessment:\s*(\{.*\})", text, flags=re.DOTALL)
+    if not m: return {}
+    try:
+        # unify quotes then parse
+        return ast.literal_eval(m.group(1))
+    except:
+        return {}
+
+
 def format_data_val(sample):
     return {
         "messages": [
