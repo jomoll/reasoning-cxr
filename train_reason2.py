@@ -11,6 +11,7 @@ from transformers import (
 from trl import SFTTrainer, SFTConfig
 from peft import LoraConfig
 import json
+import random
 
 
 # === Constants & Model Config ===
@@ -57,7 +58,7 @@ print(f"✅ Model `{model_id}` and processor `{processor_id}` loaded.")
 
 # === Data Formatting Functions ===
 
-def format_data_train(sample):
+def format_data(sample):
     reasoning_data = sample["Reasoning"]
     user_prompt = reasoning_data[0]["Step"]["Description"]
     actions = reasoning_data[0]["Step"]["Action"]
@@ -79,23 +80,6 @@ def format_data_train(sample):
         ]
     }
 
-def format_data_val(sample):
-    reasoning_data = sample["Reasoning"]
-    user_prompt = reasoning_data[0]["Step"]["Description"]
-    return {
-        "messages": [
-            {"role": "system", "content": [{"type": "text", "text": system_message}]},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": user_prompt},
-                    {"type": "image", "image": sample["Image"]},
-                ],
-            }
-        ]
-    }
-
-
 def process_vision_info(messages):
     image_inputs = []
     for msg in messages:
@@ -109,13 +93,16 @@ def process_vision_info(messages):
 # === Load and Prepare Dataset ===
 raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1-cleaned-stepwise")
 train_raw = raw_datasets["train"]
+#train_raw = train_raw.select(range(1))  # Limit to 1 sample for quick testing
+train_raw = train_raw.shuffle(seed=42)
 val_raw = raw_datasets["val"]
 
 # Limit the number of samples for quick testing
 NUM_SAMPLES = 1
 val_raw = val_raw.select(range(NUM_SAMPLES))
-train_dataset = [format_data_train(sample) for sample in train_raw]
-eval_dataset = [format_data_val(sample) for sample in val_raw]
+train_dataset = [format_data(sample) for sample in train_raw]
+eval_dataset = [format_data(sample) for sample in val_raw]
+
 print(f"📊 Training dataset size: {len(train_dataset)} sample(s)")
 print(f"📊 Evaluation dataset size: {len(eval_dataset)} sample(s)")
 
@@ -130,7 +117,6 @@ peft_config = LoraConfig(
     task_type="CAUSAL_LM",
     modules_to_save=["lm_head", "embed_tokens"],
 )
-
 
 # === Training Configuration ===
 args = SFTConfig(
@@ -206,7 +192,6 @@ def collate_fn(examples):
     labels[labels == 262144] = -100  # Fallback for image token
     batch["labels"] = labels
 
-
     return batch
 
 
@@ -229,9 +214,27 @@ print("✅ Training complete and model saved.")
 
 # === Evaluate on Held-Out Sample ===
 print("\n🔍 Running evaluation on a single sample from the val split...")
+def format_data_val(sample):
+    reasoning_data = sample["Reasoning"]
+    user_prompt = reasoning_data[0]["Step"]["Description"]
+    return {
+        "messages": [
+            {"role": "system", "content": [{"type": "text", "text": system_message}]},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_prompt},
+                    {"type": "image", "image": sample["Image"]},
+                ],
+            }
+        ]
+    }
+
+test_sample = val_raw[0]
+test_dataset = [format_data_val(test_sample)]
 
 # Reformat eval message (reuse same logic as training)
-eval_messages = eval_dataset[0]["messages"]
+eval_messages = test_dataset[0]["messages"]
 
 # Tokenize with generation prompt
 inputs = processor.apply_chat_template(
@@ -263,5 +266,4 @@ decoded = processor.decode(generation, skip_special_tokens=True)
 print("\n🧠 Model Prediction:\n")
 print(decoded)
 
-# Print ground truth for comparison
 
