@@ -14,8 +14,8 @@ import json
 
 
 # === Constants & Model Config ===
-model_id = "google/gemma-3-4b-pt"
-processor_id = "google/gemma-3-4b-it"
+model_id = "google/medgemma-4b-it"
+processor_id = "google/medgemma-4b-it"
 dataset_id = "jomoll/TAIX-reasoning-v2.1"
 
 system_message = "You are an expert radiologist."
@@ -153,7 +153,7 @@ def process_vision_info(messages):
 
 
 # === Load and Prepare Dataset ===
-raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1-cleaned")
+raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1-cleaned-stepwise")
 train_raw = raw_datasets["train"]
 val_raw = raw_datasets["val"]
 
@@ -180,8 +180,8 @@ peft_config = LoraConfig(
 
 # === Training Configuration ===
 args = SFTConfig(
-    output_dir="gemma-reason10",
-    num_train_epochs=10,
+    output_dir="gemma-reasontest",
+    num_train_epochs=1,
     per_device_train_batch_size=1,
     gradient_accumulation_steps=16,
     gradient_checkpointing=True,
@@ -289,7 +289,7 @@ print("🔢 Prompt tokens:", inputs["input_ids"].shape[-1])
 with torch.inference_mode():
     generation = model.generate(
         **inputs,
-        max_new_tokens=2248,
+        max_new_tokens=256,
         do_sample=False,
         num_beams=5,
         generation_config=GenerationConfig(pad_token_id=processor.tokenizer.pad_token_id)
