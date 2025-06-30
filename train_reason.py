@@ -34,13 +34,13 @@ user_prompt = (
     "  • Atelectasis Left\n\n"
     "First, provide a step-by-step reasoning under the header “Reasoning:” using this exact template for each step:\n"
     "Reasoning:\n"
-    "  - Step 1:\n"
+    "  - Step:\n"
     "      Description: <brief description>\n"
     "      Action:\n"
     "        - <what you looked at>\n"
     "        - <what you concluded>\n"
     "      Result: <what you found>\n"
-    "  - Step 2: …\n"
+    "  - Step: …\n"
     "  …\n"
     "  - Step N: Formulate a final assessment.\n\n"
     "After your last reasoning step, include exactly this sentinel line (no extra text):\n"
@@ -158,9 +158,8 @@ train_raw = raw_datasets["train"]
 val_raw = raw_datasets["val"]
 
 # Limit the number of samples for quick testing
-NUM_SAMPLES = 3
+NUM_SAMPLES = 1
 val_raw = val_raw.select(range(NUM_SAMPLES))
-
 train_dataset = [format_data_train(sample) for sample in train_raw]
 eval_dataset = [format_data_val(sample) for sample in val_raw]
 print(f"📊 Training dataset size: {len(train_dataset)} sample(s)")
@@ -195,7 +194,7 @@ args = SFTConfig(
     bf16=True,
     logging_steps=5,
     eval_strategy="epoch",
-    save_strategy="epoch",
+    save_strategy="no",
     push_to_hub=True,
     report_to="wandb",
     dataset_text_field="",
@@ -220,28 +219,23 @@ def collate_fn(examples):
     labels.fill_(-100)
     
     for i, ex in enumerate(examples):
-        # Directly extract the assistant's text from the message content
-        assistant_text = ex["messages"][-1]["content"][0]["text"]
-        
-        # Find where the assistant message starts in the full sequence
-        full_text = texts[i]
-        assistant_start = full_text.find(assistant_text)
-        if assistant_start != -1:
-            # Tokenize the prefix to find start position
-            prefix_text = full_text[:assistant_start]
-            prefix_tokens = processor.tokenizer(prefix_text, add_special_tokens=False)
-            start_idx = len(prefix_tokens.input_ids)
+        # Only process examples with assistant messages (training examples)
+        if len(ex["messages"]) > 2:              
+            # Find the special token that marks the start of model/assistant turn
+            model_token = "<start_of_turn>model" 
+            full_text = texts[i]
+            model_start = full_text.find(model_token)
             
-            # Tokenize assistant text to find length
-            assistant_tokens = processor.tokenizer(assistant_text, add_special_tokens=False)
-            end_idx = start_idx + len(assistant_tokens.input_ids)
-            
-            # Make sure we don't go beyond sequence length
-            if end_idx > labels.shape[1]:
-                end_idx = labels.shape[1]
+            if model_start != -1:
+                # Count tokens before the assistant message
+                prefix_ids = processor.tokenizer(full_text[:model_start + len(model_token)], 
+                                               add_special_tokens=False).input_ids
+                start_idx = len(prefix_ids)
                 
-            # Only unmask the assistant tokens
-            labels[i, start_idx:end_idx] = batch["input_ids"][i, start_idx:end_idx]
+                # Only unmask the assistant tokens
+                # Make sure we don't go beyond sequence length
+                end_idx = min(batch["input_ids"].shape[1], batch["attention_mask"][i].sum().item())
+                labels[i, start_idx:end_idx] = batch["input_ids"][i, start_idx:end_idx]
     
     # Still mask special tokens within the assistant response
     image_token_id = processor.tokenizer.convert_tokens_to_ids(
@@ -250,8 +244,8 @@ def collate_fn(examples):
     labels[labels == processor.tokenizer.pad_token_id] = -100
     labels[labels == image_token_id] = -100
     labels[labels == 262144] = -100  # Fallback for image token
-    
     batch["labels"] = labels
+
     return batch
 
 
@@ -309,6 +303,4 @@ print("\n🧠 Model Prediction:\n")
 print(decoded)
 
 # Print ground truth for comparison
-print("\n📌 Ground Truth:")
-ground_truth = eval_example["messages"][-1]["content"][0]["text"]
-print(ground_truth)
+
