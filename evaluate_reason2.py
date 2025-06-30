@@ -8,48 +8,14 @@ import json
 import os
 
 # --- Constants ---
-model_id       = "jomoll/gemma-reason10"   
-processor_id   = "google/gemma-3-4b-it"
-dataset_id     = "TLAIM/TAIX-Ray"
+model_id       = "jomoll/gemma-reasontest"   
+processor_id   = "google/medgemma-4b-it"
+dataset_id     = "jomoll/TAIX-reasoning-v2.1-cleaned-stepwise"
 output_dir     = "results"
 max_new_tokens = 2300
 NUM_SAMPLES    = 10
 NUM_BEAMS      = 5  
 system_message = "You are an expert radiologist."
-
-user_prompt = (
-    "You are given a chest X-ray image. Please assess different findings on the following scales:\n"
-    "- Heart Size: 0 = normal, 1 = borderline, 2 = enlarged, 4 = massively enlarged\n"
-    "- All others: 0 = none, 1 = mild, 2 = moderate, 3 = severe, 4 = very severe\n\n"
-    "The findings to report are:\n"
-    "  • Heart Size\n"
-    "  • Pulmonary Congestion\n"
-    "  • Pleural Effusion Right\n"
-    "  • Pleural Effusion Left\n"
-    "  • Pulmonary Opacities Right\n"
-    "  • Pulmonary Opacities Left\n"
-    "  • Atelectasis Right\n"
-    "  • Atelectasis Left\n\n"
-    "First, provide a step-by-step reasoning under the header “Reasoning:” using this exact template for each step:\n"
-    "Reasoning:\n"
-    "  - Step 1:\n"
-    "      Description: <brief description>\n"
-    "      Action:\n"
-    "        - <what you looked at>\n"
-    "        - <what you concluded>\n"
-    "      Result: <what you found>\n"
-    "  - Step 2: …\n"
-    "  …\n"
-    "  - Step N: Formulate a final assessment.\n\n"
-    "After your last reasoning step, include exactly this sentinel line (no extra text):\n"
-    "```text\n"
-    "--- END OF REASONING ---\n"
-    "Final assessment:\n"
-    "``` \n"
-    "Then output only the final assessment JSON, e.g.:\n"
-    "{'Heart Size': 2, 'Pulmonary Congestion': 1, … 'Atelectasis Left': 0}\n\n"
-    "Once you print that JSON, immediately stop and do not generate any further text."
-)
 
 FINDINGS = [
     "HeartSize","PulmonaryCongestion","PleuralEffusion_Right","PleuralEffusion_Left",
@@ -68,6 +34,8 @@ def extract_final_assessment(text):
 
 
 def format_data_val(sample):
+    reasoning_data = sample["Reasoning"]
+    user_prompt = reasoning_data[0]["Step"]["Description"]
     return {
         "messages": [
             {"role": "system", "content": [{"type": "text", "text": system_message}]},
@@ -81,6 +49,7 @@ def format_data_val(sample):
         ]
     }
 
+
 # --- Load model + processor ---
 model     = AutoModelForImageTextToText.from_pretrained(model_id, device_map="auto", torch_dtype=torch.bfloat16)
 processor = AutoProcessor.from_pretrained(processor_id)
@@ -91,8 +60,8 @@ model.eval()
 val_dataset_raw = load_dataset(dataset_id, split="val")
 # only use the first x samples for quick testing
 val_dataset_raw = val_dataset_raw.select(range(NUM_SAMPLES)) 
-
 print(f"📊 Validation dataset size: {len(val_dataset_raw)} sample(s)")
+
 
 # --- Run evaluation ---
 y_true = {c: [] for c in FINDINGS}
@@ -101,6 +70,7 @@ results = []
 
 for sample in tqdm(val_dataset_raw, desc="🚀 Starting evaluation..."):
     uid = sample["UID"]
+    ref = str(sample["Reasoning"][0]["Step"]["Action"]) + str(sample["Reasoning"][0]["Step"]["Result"])
     # 0) format data
     sample_formatted = format_data_val(sample)
     eval_messages = sample_formatted["messages"]
@@ -129,6 +99,13 @@ for sample in tqdm(val_dataset_raw, desc="🚀 Starting evaluation..."):
 
     # 7) decode & extract
     text_out = processor.decode(generated, skip_special_tokens=True)
+
+    # save refs and predictions for comparison to text file
+    with open("compare_results.txt", "a") as f:
+        f.write(f"UID: {uid}\n")
+        f.write(f"Ground Truth: {ref}\n")
+        f.write(f"Model Prediction: {text_out}\n\n")
+    """
     pred = extract_final_assessment(text_out)
 
     results.append({
@@ -167,3 +144,4 @@ with open(out_path, "w") as fp:
         "detailed_results": results
     }, fp, indent=2)
 print(f"✅ Detailed outputs saved to {out_path}")
+"""
