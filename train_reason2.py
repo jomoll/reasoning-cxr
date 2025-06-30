@@ -93,7 +93,7 @@ def process_vision_info(messages):
 # === Load and Prepare Dataset ===
 raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1-cleaned-stepwise")
 train_raw = raw_datasets["train"]
-#train_raw = train_raw.select(range(1))  # Limit to 1 sample for quick testing
+train_raw = train_raw.select(range(1000))  # Limit to 1 sample for quick testing
 train_raw = train_raw.shuffle(seed=42)
 val_raw = raw_datasets["val"]
 
@@ -234,7 +234,7 @@ test_sample = val_raw[0]
 test_dataset = [format_data_val(test_sample)]
 
 # Reformat eval message (reuse same logic as training)
-eval_messages = test_dataset[0]["messages"]
+eval_messages = test_dataset[10]["messages"]
 
 # Tokenize with generation prompt
 inputs = processor.apply_chat_template(
@@ -266,4 +266,7 @@ decoded = processor.decode(generation, skip_special_tokens=True)
 print("\n🧠 Model Prediction:\n")
 print(decoded)
 
-
+# print ground truth for comparison
+print("📜 Ground Truth:\n")
+ground_truth = test_sample["Reasoning"][0]["Step"]["Action"]+test_sample["Reasoning"][0]["Step"]["Result"]
+print(ground_truth)
