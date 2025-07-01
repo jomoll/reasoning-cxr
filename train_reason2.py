@@ -241,7 +241,7 @@ test_sample = val_raw[0]
 test_dataset = [format_data_val(test_sample)]
 
 # Reformat eval message (reuse same logic as training)
-eval_messages = test_dataset[10]["messages"]
+eval_messages = test_dataset[0]["messages"]
 
 # Tokenize with generation prompt
 inputs = processor.apply_chat_template(
