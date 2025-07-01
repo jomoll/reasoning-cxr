@@ -212,8 +212,10 @@ trainer = SFTTrainer(
 print("🚀 Starting training...")
 if resume_from_checkpoint:
     print("🔄 Resuming from checkpoint...")
-    trainer.train(resume_from_checkpoint=True)
-trainer.train()
+    trainer.train(resume_from_checkpoint=path_to_checkpoint)
+else:
+    print("📚 Starting fresh training...")
+    trainer.train()
 trainer.save_model()
 print("✅ Training complete and model saved.")
 
