@@ -16,6 +16,8 @@ import random
 
 # === Constants & Model Config ===
 model_id = "google/medgemma-4b-it"
+resume_from_checkpoint = False
+path_to_checkpoint = "gemma-reasontest" if resume_from_checkpoint else None
 processor_id = "google/medgemma-4b-it"
 dataset_id = "jomoll/TAIX-reasoning-v2.1-cleaned-stepwise-filtered"
 
@@ -120,7 +122,7 @@ peft_config = LoraConfig(
 
 # === Training Configuration ===
 args = SFTConfig(
-    output_dir="gemma-reasontest",
+    output_dir="medgemma-reasontest",
     num_train_epochs=1,
     per_device_train_batch_size=1,
     gradient_accumulation_steps=16,
@@ -208,6 +210,9 @@ trainer = SFTTrainer(
 
 # === Train & Save ===
 print("🚀 Starting training...")
+if resume_from_checkpoint:
+    print("🔄 Resuming from checkpoint...")
+    trainer.train(resume_from_checkpoint=True)
 trainer.train()
 trainer.save_model()
 print("✅ Training complete and model saved.")
