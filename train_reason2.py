@@ -17,7 +17,7 @@ import random
 # === Constants & Model Config ===
 model_id = "google/medgemma-4b-it"
 processor_id = "google/medgemma-4b-it"
-dataset_id = "jomoll/TAIX-reasoning-v2.1"
+dataset_id = "jomoll/TAIX-reasoning-v2.1-cleaned-stepwise-filtered"
 
 system_message = "You are an expert radiologist."
 
@@ -91,7 +91,7 @@ def process_vision_info(messages):
 
 
 # === Load and Prepare Dataset ===
-raw_datasets = load_dataset("jomoll/TAIX-reasoning-v2.1-cleaned-stepwise")
+raw_datasets = load_dataset(dataset_id)
 train_raw = raw_datasets["train"]
 train_raw = train_raw.select(range(1000))  # Limit to 1 sample for quick testing
 train_raw = train_raw.shuffle(seed=42)

@@ -10,7 +10,7 @@ import os
 # --- Constants ---
 model_id       = "jomoll/gemma-reasontest"   
 processor_id   = "google/medgemma-4b-it"
-dataset_id     = "jomoll/TAIX-reasoning-v2.1-cleaned-stepwise"
+dataset_id     = "jomoll/TAIX-reasoning-v2.1-cleaned-stepwise-filtered"
 output_dir     = "results"
 max_new_tokens = 2300
 NUM_SAMPLES    = 10
