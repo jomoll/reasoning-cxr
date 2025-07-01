@@ -122,7 +122,7 @@ peft_config = LoraConfig(
 
 # === Training Configuration ===
 args = SFTConfig(
-    output_dir="medgemma-reasontest",
+    output_dir="medgemma-2",
     num_train_epochs=1,
     per_device_train_batch_size=1,
     gradient_accumulation_steps=16,
