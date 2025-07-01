@@ -1,7 +1,7 @@
 # === Eval Script: Final Assessment Only ===
 import torch
 from datasets import load_dataset
-from transformers import AutoProcessor, AutoModelForImageTextToText, GenerationConfig
+from transformers import AutoProcessor, AutoModelForImageTextToText, GenerationConfig, BitsAndBytesConfig
 import re, ast
 from tqdm import tqdm
 import json
@@ -51,7 +51,19 @@ def format_data_val(sample):
 
 
 # --- Load model + processor ---
-model     = AutoModelForImageTextToText.from_pretrained(model_id, device_map="auto", torch_dtype=torch.bfloat16)
+model_kwargs = dict(
+    attn_implementation="eager",
+    torch_dtype=torch.bfloat16,
+    device_map="auto",
+    quantization_config=BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_quant_storage=torch.bfloat16,
+    ),
+)
+model     = AutoModelForImageTextToText.from_pretrained(model_id, **model_kwargs)
 processor = AutoProcessor.from_pretrained(processor_id)
 print(f"✅ Model `{model_id}` and processor `{processor_id}`loaded.")
 model.eval()
