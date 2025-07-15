@@ -17,7 +17,7 @@ model_name = "models/Llama-3.1-8B-Instruct"
 dataset_name = "datafolder/TAIX-Ray"
 
 # Replace the iteration section
-total_images = 10000  # Number of images to process
+total_images = 20000  # Number of images to process
 processed = 0
 
 # Prompt
@@ -44,17 +44,18 @@ prompt_base = (
     "1. Use clear, concise anatomical language (“left lower lobe,” “mediastinal contour,” etc.).\n"
     "2. Report only what's explicitly in the clinical data; neither add nor omit.\n"
     "3. Each step must flow: **where** → **what** → **so what**.\n"
-    "4. **Always** state the severity category when you apply a scale (e.g., “mild cardiomegaly”).\n"
-    "5. Keep Action bullets concise.\n"
-    "6. Do not reuse phrasing from the example—it's for style only.\n\n"
-    "Example trace (style only; ignore its conclusions):\n\n"
+    "4. Evaluate each finding individually (i.e. just because all other findings are present, doesn't mean the heart size is also enlarged).\n"
+    "5. **Always** state the severity category when you apply a scale (e.g., “mild cardiomegaly”).\n"
+    "6. Keep Action bullets concise.\n"
+    "7. Do not reuse phrasing from the example—it's for style only (e.g. don't copy the severity scales such as mild, moderate or severe).\n\n"
+    "Example trace (style only; ignore its findings and conclusions):\n\n"
     f"{example_output}\n\n"
     "Now, given the following clinical case, write the Reasoning:\n\n"
 )
 
 def describe_row(row):
     parts = [f"Patient age {int(row['Age'])//365} years"]
-    parts.append(f"{cardio_map.get(row['HeartSize'], 'unknown')} cardiomegaly")
+    parts.append(f"{cardio_map.get(row['HeartSize'], 'unknown')} heart size")
     parts.append(f"{other_map.get(row['PulmonaryCongestion'], 'unknown')} pulmonary congestion")
     parts.append(f"{other_map.get(row['PleuralEffusion_Right'], 'unknown')} right pleural effusion")
     parts.append(f"{other_map.get(row['PleuralEffusion_Left'], 'unknown')} left pleural effusion")
@@ -103,7 +104,7 @@ model = transformers.AutoModelForCausalLM.from_pretrained(model_name, cache_dir=
 tokenizer = transformers.AutoTokenizer.from_pretrained(model_name, cache_dir='.', trust_remote_code=True)
 
 dataset = load_dataset(dataset_name, name="default")["train"]
-dataset = dataset.select(range(1000))
+dataset = dataset.select(range(5))
 metadata_df = pd.DataFrame(dataset)
 
 # Define mappings
@@ -132,7 +133,6 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
             clinical_info = describe_row(row)
 
             prompt = prompt_base + "\n\n" + clinical_info
-            
             # Format prompt for LLaMA
             formatted_prompt = f"[INST] {prompt} [/INST]"
             
