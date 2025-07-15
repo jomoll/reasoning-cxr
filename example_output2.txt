@@ -57,7 +57,7 @@ Reasoning:
       - I note Kerley B lines and peribronchial cuffing.
       - There is peribronchial cuffing.
       - There is a sign of pulmonary edema.
-    Result: Findings indicate intermediate pulmonary vascular congestion. 
+    Result: Findings indicate moderate pulmonary vascular congestion. 
   - Step 10:
     Description: Pleural Effusion
     Action:
