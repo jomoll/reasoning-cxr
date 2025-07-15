@@ -66,8 +66,10 @@ def clean_yaml_format(output_text):
     # Reasoning: [{- Step 1: Description: ..., Action: [...], Result: ...}, ...]
     # FinalAssessment: [summary diagnosis]
     formatted_output = {'Reasoning': []}
+    # filter for output after "Reasoning"
+    reasoning_section = output_text.split('Reasoning:', 1)[1].strip()
     try:
-        steps = [s.strip() for s in output_text.split('- Step') if s.strip()]
+        steps = [s.strip() for s in reasoning_section.split('- Step') if s.strip()]
 
         for step in steps:
             step_index = step.split(':')[0].strip()
@@ -156,7 +158,7 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
             output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
             output_text = output_text[len(formatted_prompt):].strip()
             output_text = clean_yaml_format(output_text)  # Add formatting cleanup
-
+            print(f"Generated output for {uid}: {output_text}")
             # Read existing YAML
             with open(yaml_output_path, 'r') as f:
                 yaml_content = yaml.safe_load(f)
