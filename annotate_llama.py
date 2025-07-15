@@ -7,7 +7,7 @@ from shutil import copyfile
 from tqdm import tqdm 
 
 # constants
-version = str(3.0)
+version = str(3.1)
 metadata_path = "data/keno_1000/Metadata_1000_only_new.csv"
 yaml_output_dir = "data/keno_1000/annotations/v"+version
 template_path = "template_llama.yaml"
@@ -34,12 +34,12 @@ prompt_base = (
     " - Step...: ...\n\n"
     "Severity Scales (apply **always** when relevant):\n"
     "a. For heart size/cardiomegaly, use cardiothoracic ratio: normal if not enlarged, mild enlargement or marked enlargement.\n"
-    "b. Pulmonary congestion: (mild) vascular redistribution only; (moderate) interstitial edema (Kerley B lines, peribronchial cuffing, septal thickening); (severe) alveolar edema (bat-wing consolidations, alveolar fluid, air bronchograms).\n"
-    "c. Pleural effusion: (mild) blunting of costophrenic angle only; (moderate) small layering effusion (<1/3 hemithorax height); (severe) moderate-large effusion (>1/3 with meniscus and possible mediastinal shift).\n"
-    "d. Consolidation: (mild) focal/lobar; (moderate) multifocal; (severe) diffuse/alveolar (e.g. ARDS pattern).\n"   
-    "e. Pneumothorax: (mild) small (<2 cm apical rim, no mediastinal shift); (moderate) moderate (2-4 cm rim, no shift); (severe) large/tension (>4 cm rim or any mediastinal shift).\n"
+    "b. Mediastinal widening/shift: (mild) width slightly above normal upper limit (6-8 cm), no tracheal deviation; (moderate) width 8-10 cm or mild shift (<1 cm); (severe) width >10 cm or shift >1 cm with contour distortion.\n"
+    "c. Pulmonary congestion: (mild) vascular redistribution only; (moderate) interstitial edema (Kerley B lines, peribronchial cuffing, septal thickening); (severe) alveolar edema (bat-wing consolidations, alveolar fluid, air bronchograms).\n"
+    "d. Pleural effusion: (mild) blunting of costophrenic angle only; (moderate) small layering effusion (<1/3 hemithorax height); (severe) moderate-large effusion (>1/3 with meniscus and possible mediastinal shift).\n"
+    "e. Consolidation: (mild) focal/lobar; (moderate) multifocal; (severe) diffuse/alveolar (e.g. ARDS pattern).\n"   
     "f. Atelectasis: (mild) subsegmental opacity with minimal volume loss; (moderate) lobar collapse with fissure displacement and ipsilateral shift; (severe) whole-lung collapse with marked shift.\n"
-    "g. Mediastinal widening/shift: (mild) width slightly above normal upper limit (6-8 cm), no tracheal deviation; (moderate) width 8-10 cm or mild shift (<1 cm); (severe) width >10 cm or shift >1 cm with contour distortion.\n"
+    "g. Pneumothorax: (mild) small (<2 cm apical rim, no mediastinal shift); (moderate) moderate (2-4 cm rim, no shift); (severe) large/tension (>4 cm rim or any mediastinal shift).\n"
     "Guidelines:\n"
     "1. Use clear, concise anatomical language (“left lower lobe,” “mediastinal contour,” etc.).\n"
     "2. Report only what's explicitly in the clinical data; neither add nor omit.\n"
