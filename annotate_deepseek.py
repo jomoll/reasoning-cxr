@@ -11,8 +11,8 @@ version = str(3.0)
 metadata_path = "data/keno_1000/Metadata_1000_only_new.csv"
 yaml_output_dir = "data/keno_1000/annotations/v"+version
 template_path = "template_llama.yaml"
-model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-
+#model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+model_name = "meta-llama/Llama-3.1-8B-Instruct"
 # Replace the iteration section
 total_images = 10000  # Number of images to process
 processed = 0
@@ -34,9 +34,9 @@ prompt_base = (
     " - Step...: ...\n\n"
     "Guidelines:\n"
     "1. Use clear, concise anatomical language (“left lower lobe,” “mediastinal contour,” etc.).\n"
-    "2. Each step should flow logically: describe **where**, then **what**, then **so what**.\n"
+    "2. Each step should flow logically: describe where, then what, then so what.\n"
     "3. Keep Actions and Observations bulleted for readability.\n\n"
-    "4. Do **not** simply repeat phrases from the example; it’s for reference only.\n\n"
+    "4. Do not simply repeat phrases from the example; it's for reference only.\n\n"
     "Here's an example of a complete trace for style and level of detail:\n\n"
     f"{example_output}\n\n"
     "Now, given the following clinical case, write the Reasoning:\n\n"
