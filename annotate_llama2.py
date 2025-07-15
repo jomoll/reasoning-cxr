@@ -62,6 +62,7 @@ def describe_row(row):
     parts.append(f"{other_map.get(row['PulmonaryOpacities_Left'], 'unknown')} left pulmonary opacities")
     parts.append(f"{other_map.get(row['Atelectasis_Right'], 'unknown')} right atelectasis")
     parts.append(f"{other_map.get(row['Atelectasis_Left'], 'unknown')} left atelectasis")
+    return "Clinical data: " + ", ".join(parts) + "."
 
 def clean_yaml_format(output_text):
     if isinstance(output_text, dict):
@@ -102,6 +103,7 @@ model = transformers.AutoModelForCausalLM.from_pretrained(model_name, cache_dir=
 tokenizer = transformers.AutoTokenizer.from_pretrained(model_name, cache_dir='.', trust_remote_code=True)
 
 dataset = load_dataset(dataset_name, name="default")["train"]
+dataset = dataset.select(range(1000))
 metadata_df = pd.DataFrame(dataset)
 
 # Define mappings
