@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 # constants
 version = str(3.0)
-metadata_path = "data/keno_1000/Metadata_1000_only_new.xlsx"
+metadata_path = "data/keno_1000/Metadata_1000_only_new.csv"
 yaml_output_dir = "data/keno_1000/annotations/v"+version
 template_path = "template_llama.yaml"
 model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
