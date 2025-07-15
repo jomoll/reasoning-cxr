@@ -8,11 +8,13 @@ from tqdm import tqdm
 from datasets import load_dataset
 
 # constants
-version = str(3.0)
+version = str(3.1)
 metadata_path = "data/keno_1000/Metadata_1000_only_new.csv"
 yaml_output_dir = "data/keno_1000/annotations/v"+version
+alternative_yaml_output_dir = "data/keno_1000/annotations/v3.0"
 template_path = "template_llama.yaml"
-model_name = "models/DeepSeek-R1-Distill-Qwen-7B"
+model_name = "models/Llama-3.1-8B-Instruct"
+dataset_name = "datafolder/TAIX-Ray"
 
 # Replace the iteration section
 total_images = 10000  # Number of images to process
@@ -33,26 +35,39 @@ prompt_base = (
     "     - <action 2>\n"
     "   Result: <intermediate conclusion>\n"
     " - Step...: ...\n\n"
+    "Severity Scales (apply **always** when relevant):\n"
+    "a. For heart size/cardiomegaly, use cardiothoracic ratio: normal if not enlarged, mild enlargement or marked enlargement.\n"
+    "b. Mediastinal widening/shift: (mild) width slightly above normal upper limit (6-8 cm), no tracheal deviation; (moderate) width 8-10 cm or mild shift (<1 cm); (severe) width >10 cm or shift >1 cm with contour distortion.\n"
+    "c. Pulmonary congestion: (mild) vascular redistribution only; (moderate) interstitial edema (Kerley B lines, peribronchial cuffing, septal thickening); (severe) alveolar edema (bat-wing consolidations, alveolar fluid, air bronchograms).\n"
+    "d. Pleural effusion: (mild) blunting of costophrenic angle only; (moderate) small layering effusion (<1/3 hemithorax height); (severe) moderate-large effusion (>1/3 with meniscus and possible mediastinal shift).\n"
+    "e. Consolidation: (mild) focal/lobar; (moderate) multifocal; (severe) diffuse/alveolar (e.g. ARDS pattern).\n"   
+    "f. Atelectasis: (mild) subsegmental opacity with minimal volume loss; (moderate) lobar collapse with fissure displacement and ipsilateral shift; (severe) whole-lung collapse with marked shift.\n"
+    "g. Pneumothorax: (mild) small (<2 cm apical rim, no mediastinal shift); (moderate) moderate (2-4 cm rim, no shift); (severe) large/tension (>4 cm rim or any mediastinal shift).\n"
     "Guidelines:\n"
     "1. Use clear, concise anatomical language (“left lower lobe,” “mediastinal contour,” etc.).\n"
-    "2. Each step should flow logically: describe **where**, then **what**, then **so what**.\n"
-    "3. Keep Actions and Observations bulleted for readability.\n\n"
-    "4. Do **not** simply repeat phrases from the example; it’s for reference only.\n\n"
-    "Here's an example of a complete trace for style and level of detail:\n\n"
+    "2. Report only what's explicitly in the clinical data; neither add nor omit.\n"
+    "3. Each step must flow: **where** → **what** → **so what**.\n"
+    "4. **Always** state the severity category when you apply a scale (e.g., “mild cardiomegaly”).\n"
+    "5. Keep Action bullets concise.\n"
+    "6. Do not reuse phrasing from the example—it's for style only.\n\n"
+    "Example trace (style only; ignore its conclusions):\n\n"
     f"{example_output}\n\n"
     "Now, given the following clinical case, write the Reasoning:\n\n"
 )
 
 def describe_row(row):
     parts = [f"Patient age {int(row['Age'])//365} years"]
-    parts.append(f"{cardio_map.get(row['HeartSize'], 'unknown')} cardiomegaly")
-    parts.append(f"{other_map.get(row['PulmonaryCongestion'], 'unknown')} pulmonary congestion")
-    parts.append(f"{other_map.get(row['PleuralEffusion_Right'], 'unknown')} right pleural effusion")
-    parts.append(f"{other_map.get(row['PleuralEffusion_Left'], 'unknown')} left pleural effusion")
-    parts.append(f"{other_map.get(row['PulmonaryOpacities_Right'], 'unknown')} right pulmonary opacities")
-    parts.append(f"{other_map.get(row['PulmonaryOpacities_Left'], 'unknown')} left pulmonary opacities")
-    parts.append(f"{other_map.get(row['Atelectasis_Right'], 'unknown')} right atelectasis")
-    parts.append(f"{other_map.get(row['Atelectasis_Left'], 'unknown')} left atelectasis")
+    parts.append(f"{cardio_map.get(row['cardiomegaly2'], 'unknown')} heart size")
+    parts.append(f"{other_map.get(row['congestion2'], 'unknown')} congestion")
+    parts.append(f"{other_map.get(row['pleural_effusion_right2'], 'unknown')} right pleural effusion")
+    parts.append(f"{other_map.get(row['pleural_effusion_left2'], 'unknown')} left pleural effusion")
+    parts.append(f"{other_map.get(row['pneumonic_infiltrates_right2'], 'unknown')} right pneumonic infiltrates")
+    parts.append(f"{other_map.get(row['pneumonic_infiltrates_left2'], 'unknown')} left pneumonic infiltrates")
+    parts.append(f"{other_map.get(row['atelectasis_right2'], 'unknown')} right atelectasis")
+    parts.append(f"{other_map.get(row['atelectasis_left2'], 'unknown')} left atelectasis")
+    parts.append(f"{pneumo_map.get(row['pneumothorax_right'], 'unknown')} right pneumothorax")
+    parts.append(f"{pneumo_map.get(row['pneumothorax_left'], 'unknown')} left pneumothorax")
+    parts.append(f"{(row['Sonstiges'], 'unknown')}")
     return "Clinical data: " + ", ".join(parts) + "."
 
 def clean_yaml_format(output_text):
@@ -61,12 +76,16 @@ def clean_yaml_format(output_text):
     if not output_text or 'Reasoning:' not in output_text:
         return {'Reasoning': []}
     # formatted output: 
-    # Reasoning: [{- Step: Description: ..., Action: [...], Result: ...}, ...]
+    # Reasoning: [{- Step 1: Description: ..., Action: [...], Result: ...}, ...]
     # FinalAssessment: [summary diagnosis]
     formatted_output = {'Reasoning': []}
+    # filter for output after "Reasoning"
+    reasoning_section = output_text.split('Reasoning:', 1)[1].strip()
     try:
-        steps = [s.strip() for s in output_text.split('- Step:') if s.strip()]
+        steps = [s.strip() for s in reasoning_section.split('- Step') if s.strip()]
+
         for step in steps:
+            step_index = step.split(':')[0].strip()
             step_dict = {}
             if 'Description:' in step:
                 desc = step.split('Description:', 1)[1].split('Action:', 1)[0].strip()
@@ -79,23 +98,7 @@ def clean_yaml_format(output_text):
                 result = step.split('Result:', 1)[1].split('\n', 1)[0]
                 step_dict['Result'] = result.strip().strip('"')
             if step_dict:
-                formatted_output['Reasoning'].append({'Step': step_dict})  # Changed from {'- Step': step_dict}
-
-        # Check for FinalAssessment
-        if 'FinalAssessment:' in output_text:
-            final_assessment = output_text.split('FinalAssessment:', 1)[1].strip()
-            # Format as a list if not already
-            if not final_assessment.startswith('- '):
-                final_assessment = [final_assessment.strip().strip('"')]
-            else:
-                # Split into list items if multiple are present
-                final_assessment = [item.strip().strip('- ').strip('"') 
-                                 for item in final_assessment.split('\n') 
-                                 if item.strip()]
-            formatted_output['FinalAssessment'] = final_assessment
-        else:
-            formatted_output['FinalAssessment'] = []
-        
+                formatted_output['Reasoning'].append({f'Step {step_index}': step_dict})  # Changed from {'- Step': step_dict}
         return formatted_output
         
     except Exception as e:
@@ -105,20 +108,20 @@ def clean_yaml_format(output_text):
 model = transformers.AutoModelForCausalLM.from_pretrained(model_name, cache_dir='.', trust_remote_code=True, device_map="auto", torch_dtype=torch.bfloat16)
 tokenizer = transformers.AutoTokenizer.from_pretrained(model_name, cache_dir='.', trust_remote_code=True)
 
-dataset = load_dataset("TLAIM/TAIX-Ray", name="default")["train"]
+dataset = load_dataset(dataset_name, name="default")["train"]
 metadata_df = pd.DataFrame(dataset)
 
 # Define mappings
 cardio_map = {-1: "not assessable", 0: "normal", 1: "borderline", 2: "enlarged", 4: "massively enlarged"}
 other_map = {0: "none", 1: "mild", 2: "moderate", 3: "severe", 4: "very severe"}
-
+pneumo_map = {0: "no", 1: "there is a"}
 # Create output directory if it doesn't exist
 os.makedirs(yaml_output_dir, exist_ok=True)
 
 # Iterate through metadata file
 with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
     # check if uid already in data/annotations/v1.0
-    if os.path.exists(yaml_output_dir):
+    if os.path.exists(yaml_output_dir) or os.path.exists(alternative_yaml_output_dir):
         existing_uids = {os.path.splitext(f)[0] for f in os.listdir(yaml_output_dir) if f.endswith('.yaml')}
     # Iterate through each row in the metadata DataFrame
     for i, row in metadata_df.iterrows():
@@ -145,9 +148,10 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
             with torch.no_grad():
                 outputs = model.generate(
                     **inputs,
-                    max_new_tokens=2248,
+                    max_new_tokens=2048,
                     do_sample=True,
                     num_beams=4,
+                    temperature=0.5,
                     pad_token_id=tokenizer.eos_token_id
                 )
             
