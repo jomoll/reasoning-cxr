@@ -55,7 +55,8 @@ Reasoning:
       - I assess vascular markings for redistribution.
       - I note increased vascular markings in the upper lung zones.
       - I note Kerley B lines and peribronchial cuffing.
-      - Signs consistent with pulmonary edema are present.
+      - There is peribronchial cuffing.
+      - There is a sign of pulmonary edema.
     Result: Findings indicate intermediate pulmonary vascular congestion. 
   - Step 10:
     Description: Pleural Effusion
