@@ -27,7 +27,7 @@ prompt_base = (
     "Reasoning:\n"
     " - Step<number>:\n"
     "   Description: <what you're examining (e.g., 'Cardiac Size and Contours')>\n"
-    "   Action: <list of where you look, what you see, and what that means (e.g., '- I assess the cardiothoracic ratio; the heart appears enlarged.')>\n"
+    "   Action: <list of where you look, what you see, and what that means.>\n"
     "     - <action 1>\n"
     "     - <action 2>\n"
     "   Result: <intermediate conclusion>\n"
