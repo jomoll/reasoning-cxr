@@ -12,7 +12,7 @@ metadata_path = "data/keno_1000/Metadata_1000_only_new.csv"
 yaml_output_dir = "data/keno_1000/annotations/v"+version
 template_path = "template_llama.yaml"
 #model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-model_name = "meta-llama/Llama-3.1-8B-Instruct"
+model_name = "models/Llama-3.1-8B-Instruct"
 # Replace the iteration section
 total_images = 10000  # Number of images to process
 processed = 0
