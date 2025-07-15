@@ -109,6 +109,7 @@ tokenizer = transformers.AutoTokenizer.from_pretrained(model_name, cache_dir='.'
 metadata_df = pd.read_csv(metadata_path)
 metadata_df.set_index("UID", inplace=True)
 
+"""
 # Add this after loading metadata_df but before the iteration loop
 target_uids_file = "target_uids.txt"
 if os.path.exists(target_uids_file):
@@ -119,7 +120,7 @@ if os.path.exists(target_uids_file):
     print(f"Found {len(metadata_df)} samples matching target UIDs")
 else:
     print("No target_uids.txt found, will process all samples")
-
+"""
 # Update total_images to not exceed available samples
 total_images = min(total_images, len(metadata_df))
 

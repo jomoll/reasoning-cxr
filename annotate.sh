@@ -1,1 +1,2 @@
-python annotate_llama2.py
+export CUDA_VISIBLE_DEVICES=1
+python annotate_llama.py
