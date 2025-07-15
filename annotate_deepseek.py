@@ -152,7 +152,7 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
                     max_new_tokens=2048,
                     do_sample=True,
                     num_beams=4,
-                    temperature=0.5,
+                    temperature=0,
                     pad_token_id=tokenizer.eos_token_id
                 )
             
