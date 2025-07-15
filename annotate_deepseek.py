@@ -45,7 +45,7 @@ prompt_base = (
 
 def describe_row(row):
     parts = [f"Patient age {int(row['Age'])//365} years"]
-    parts.append(f"{cardio_map.get(row['cardiomegaly2'], 'unknown')} cardiomegaly")
+    parts.append(f"{cardio_map.get(row['cardiomegaly2'], 'unknown')} heart size")
     parts.append(f"{other_map.get(row['congestion2'], 'unknown')} congestion")
     parts.append(f"{other_map.get(row['pleural_effusion_right2'], 'unknown')} right pleural effusion")
     parts.append(f"{other_map.get(row['pleural_effusion_left2'], 'unknown')} left pleural effusion")
@@ -152,7 +152,7 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
                     max_new_tokens=2048,
                     do_sample=True,
                     num_beams=4,
-                    temperature=0,
+                    temperature=0.5,
                     pad_token_id=tokenizer.eos_token_id
                 )
             
