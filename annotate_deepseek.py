@@ -11,7 +11,7 @@ version = str(3.0)
 metadata_path = "data/keno_1000/Metadata_1000_only_new.csv"
 yaml_output_dir = "data/keno_1000/annotations/v"+version
 template_path = "template_llama.yaml"
-model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 
 # Replace the iteration section
 total_images = 10000  # Number of images to process
@@ -148,10 +148,10 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
             with torch.no_grad():
                 outputs = model.generate(
                     **inputs,
-                    max_new_tokens=1800,
+                    max_new_tokens=2048,
                     do_sample=True,
-                    num_beams=1,
-                    temperature=0.5,
+                    num_beams=4,
+                    #temperature=0.5,
                     pad_token_id=tokenizer.eos_token_id
                 )
             
