@@ -169,7 +169,7 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
             output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
             output_text = output_text[len(formatted_prompt):].strip()
             output_text = clean_yaml_format(output_text)  # Add formatting cleanup
-            print(f"Generated output for {uid}: {output_text}")
+            #print(f"Generated output for {uid}: {output_text}")
             # Read existing YAML
             with open(yaml_output_path, 'r') as f:
                 yaml_content = yaml.safe_load(f)

@@ -21,7 +21,7 @@ total_images = 10000  # Number of images to process
 processed = 0
 
 # Prompt
-with open("example_output2.txt", "r") as f:
+with open("example_output_no_devices.txt", "r") as f:
     example_output = f.read()
 prompt_base = (
     "You are a board-certified radiologist interpreting a chest X-ray. "
