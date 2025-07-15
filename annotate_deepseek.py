@@ -63,12 +63,14 @@ def clean_yaml_format(output_text):
     if not output_text or 'Reasoning:' not in output_text:
         return {'Reasoning': []}
     # formatted output: 
-    # Reasoning: [{- Step: Description: ..., Action: [...], Result: ...}, ...]
+    # Reasoning: [{- Step 1: Description: ..., Action: [...], Result: ...}, ...]
     # FinalAssessment: [summary diagnosis]
     formatted_output = {'Reasoning': []}
     try:
-        steps = [s.strip() for s in output_text.split('- Step:') if s.strip()]
+        steps = [s.strip() for s in output_text.split('- Step') if s.strip()]
+
         for step in steps:
+            step_index = step.split(':')[0].strip()
             step_dict = {}
             if 'Description:' in step:
                 desc = step.split('Description:', 1)[1].split('Action:', 1)[0].strip()
@@ -81,23 +83,7 @@ def clean_yaml_format(output_text):
                 result = step.split('Result:', 1)[1].split('\n', 1)[0]
                 step_dict['Result'] = result.strip().strip('"')
             if step_dict:
-                formatted_output['Reasoning'].append({'Step': step_dict})  # Changed from {'- Step': step_dict}
-
-        # Check for FinalAssessment
-        if 'FinalAssessment:' in output_text:
-            final_assessment = output_text.split('FinalAssessment:', 1)[1].strip()
-            # Format as a list if not already
-            if not final_assessment.startswith('- '):
-                final_assessment = [final_assessment.strip().strip('"')]
-            else:
-                # Split into list items if multiple are present
-                final_assessment = [item.strip().strip('- ').strip('"') 
-                                 for item in final_assessment.split('\n') 
-                                 if item.strip()]
-            formatted_output['FinalAssessment'] = final_assessment
-        else:
-            formatted_output['FinalAssessment'] = []
-        
+                formatted_output['Reasoning'].append({f'Step {step_index}': step_dict})  # Changed from {'- Step': step_dict}
         return formatted_output
         
     except Exception as e:
@@ -169,7 +155,6 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
             
             output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
             output_text = output_text[len(formatted_prompt):].strip()
-            print(f"Raw output for {uid}:\n{output_text}\n")
             output_text = clean_yaml_format(output_text)  # Add formatting cleanup
 
             # Read existing YAML
