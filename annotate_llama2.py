@@ -37,12 +37,9 @@ prompt_base = (
     " - Step...: ...\n\n"
     "Severity Scales (apply **always** when relevant):\n"
     "a. For heart size/cardiomegaly, use cardiothoracic ratio: normal if not enlarged, mild enlargement or marked enlargement.\n"
-    "b. Mediastinal widening/shift: (mild) width slightly above normal upper limit (6-8 cm), no tracheal deviation; (moderate) width 8-10 cm or mild shift (<1 cm); (severe) width >10 cm or shift >1 cm with contour distortion.\n"
-    "c. Pulmonary congestion: (mild) vascular redistribution only; (moderate) interstitial edema (Kerley B lines, peribronchial cuffing, septal thickening); (severe) alveolar edema (bat-wing consolidations, alveolar fluid, air bronchograms).\n"
-    "d. Pleural effusion: (mild) blunting of costophrenic angle only; (moderate) small layering effusion (<1/3 hemithorax height); (severe) moderate-large effusion (>1/3 with meniscus and possible mediastinal shift).\n"
-    "e. Consolidation: (mild) focal/lobar; (moderate) multifocal; (severe) diffuse/alveolar (e.g. ARDS pattern).\n"   
-    "f. Atelectasis: (mild) subsegmental opacity with minimal volume loss; (moderate) lobar collapse with fissure displacement and ipsilateral shift; (severe) whole-lung collapse with marked shift.\n"
-    "g. Pneumothorax: (mild) small (<2 cm apical rim, no mediastinal shift); (moderate) moderate (2-4 cm rim, no shift); (severe) large/tension (>4 cm rim or any mediastinal shift).\n"
+    "b. Pulmonary congestion: (mild) vascular redistribution only; (moderate) interstitial edema (Kerley B lines, peribronchial cuffing, septal thickening); (severe) alveolar edema (bat-wing consolidations, alveolar fluid, air bronchograms).\n"
+    "c. Pleural effusion: (mild) blunting of costophrenic angle only; (moderate) small layering effusion (<1/3 hemithorax height); (severe) moderate-large effusion (>1/3 with meniscus and possible mediastinal shift).\n"
+    "d. Atelectasis: (mild) subsegmental opacity with minimal volume loss; (moderate) lobar collapse with fissure displacement and ipsilateral shift; (severe) whole-lung collapse with marked shift.\n"
     "Guidelines:\n"
     "1. Use clear, concise anatomical language (“left lower lobe,” “mediastinal contour,” etc.).\n"
     "2. Report only what's explicitly in the clinical data; neither add nor omit.\n"
@@ -57,18 +54,14 @@ prompt_base = (
 
 def describe_row(row):
     parts = [f"Patient age {int(row['Age'])//365} years"]
-    parts.append(f"{cardio_map.get(row['cardiomegaly2'], 'unknown')} heart size")
-    parts.append(f"{other_map.get(row['congestion2'], 'unknown')} congestion")
-    parts.append(f"{other_map.get(row['pleural_effusion_right2'], 'unknown')} right pleural effusion")
-    parts.append(f"{other_map.get(row['pleural_effusion_left2'], 'unknown')} left pleural effusion")
-    parts.append(f"{other_map.get(row['pneumonic_infiltrates_right2'], 'unknown')} right pneumonic infiltrates")
-    parts.append(f"{other_map.get(row['pneumonic_infiltrates_left2'], 'unknown')} left pneumonic infiltrates")
-    parts.append(f"{other_map.get(row['atelectasis_right2'], 'unknown')} right atelectasis")
-    parts.append(f"{other_map.get(row['atelectasis_left2'], 'unknown')} left atelectasis")
-    parts.append(f"{pneumo_map.get(row['pneumothorax_right'], 'unknown')} right pneumothorax")
-    parts.append(f"{pneumo_map.get(row['pneumothorax_left'], 'unknown')} left pneumothorax")
-    parts.append(f"{(row['Sonstiges'], 'unknown')}")
-    return "Clinical data: " + ", ".join(parts) + "."
+    parts.append(f"{cardio_map.get(row['HeartSize'], 'unknown')} cardiomegaly")
+    parts.append(f"{other_map.get(row['PulmonaryCongestion'], 'unknown')} pulmonary congestion")
+    parts.append(f"{other_map.get(row['PleuralEffusion_Right'], 'unknown')} right pleural effusion")
+    parts.append(f"{other_map.get(row['PleuralEffusion_Left'], 'unknown')} left pleural effusion")
+    parts.append(f"{other_map.get(row['PulmonaryOpacities_Right'], 'unknown')} right pulmonary opacities")
+    parts.append(f"{other_map.get(row['PulmonaryOpacities_Left'], 'unknown')} left pulmonary opacities")
+    parts.append(f"{other_map.get(row['Atelectasis_Right'], 'unknown')} right atelectasis")
+    parts.append(f"{other_map.get(row['Atelectasis_Left'], 'unknown')} left atelectasis")
 
 def clean_yaml_format(output_text):
     if isinstance(output_text, dict):

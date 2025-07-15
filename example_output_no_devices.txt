@@ -1,0 +1,50 @@
+Reasoning:
+  - Step 1:
+    Description: Cardiac Size and Contours
+    Action:
+      - I assess cardiothoracic ratio; the heart appears enlarged.
+      - Cardiac contours are clear and well-defined.
+    Result: The heart size is enlarged.
+  - Step 2:
+    Description: Pulmonary Vascular Congestion
+    Action:
+      - I assess vascular markings for redistribution.
+      - I note increased vascular markings in the upper lung zones.
+      - I note Kerley B lines and peribronchial cuffing.
+      - There is peribronchial cuffing.
+      - There is a sign of pulmonary edema.
+    Result: Findings indicate moderate pulmonary vascular congestion. 
+  - Step 3:
+    Description: Pleural Effusion
+    Action:
+      - I examine costophrenic angles bilaterally.
+      - Right angle is blunted with opacity; moderate effusion.
+      - Left angle is obliterated with larger opacity; severe effusion.
+    Result: Moderate right and severe left pleural effusions.
+  - Step 4:
+    Description: Atelectasis
+    Action:
+      - I inspect lung parenchyma for collapse.
+      - Right lung is fully expanded; no atelectasis.
+      - Left lung shows opacity and volume loss consistent with compression from effusion.
+    Result: Left compression atelectasis due to pleural effusion; no right atelectasis.
+  - Step 5:
+    Description: Pulmonary Infiltrates
+    Action:
+      - I search for alveolar or interstitial opacities.
+      - Right lower lung zone demonstrates patchy opacity consistent with pneumonia.
+      - Left lung shows no infiltrative abnormalities.
+    Result: Right lower lobe pneumonic infiltrates; left lung clear.
+  - Step 6:
+    Description: Impression
+    Action:
+      - I synthesize all findings into a concise summary
+      - Diagnostic-quality image.
+      - Left subclavian central line appropriately placed.
+      - Right chest tube in situ.
+      - Cardiomegaly with signs of intermediate pulmonary vascular congestion.
+      - No endotracheal or nasogastric tubes.
+      - Moderate right and severe left pleural effusions causing left compression atelectasis.
+      - Right lower lobe pneumonic infiltrates.
+      - No pneumothorax or other devices present.
+    Result: Impression consistent with congestive heart failure exacerbation and bilateral pleural effusions, worse on the left, with superimposed right lower lobe pneumonia.
