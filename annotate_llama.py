@@ -7,7 +7,7 @@ from shutil import copyfile
 from tqdm import tqdm 
 
 # constants
-version = str(3.1)
+version = str(3.0)
 metadata_path = "data/keno_1000/Metadata_1000_only_new.csv"
 yaml_output_dir = "data/keno_1000/annotations/v"+version
 template_path = "template_llama.yaml"
