@@ -52,8 +52,8 @@ def describe_row(row):
     parts.append(f"{other_map.get(row['pneumonic_infiltrates_left2'], 'unknown')} left pneumonic infiltrates")
     parts.append(f"{other_map.get(row['atelectasis_right2'], 'unknown')} right atelectasis")
     parts.append(f"{other_map.get(row['atelectasis_left2'], 'unknown')} left atelectasis")
-    parts.append(f"{pneumo_map.get(row['pneumothorax_right2'], 'unknown')} right pneumothorax")
-    parts.append(f"{pneumo_map.get(row['pneumothorax_left2'], 'unknown')} left pneumothorax")
+    parts.append(f"{pneumo_map.get(row['pneumothorax_right'], 'unknown')} right pneumothorax")
+    parts.append(f"{pneumo_map.get(row['pneumothorax_left'], 'unknown')} left pneumothorax")
     parts.append(f"{(row['Sonsiges'], 'unknown')}")
     return "Clinical data: " + ", ".join(parts) + "."
 
