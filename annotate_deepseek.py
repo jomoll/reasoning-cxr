@@ -54,7 +54,7 @@ def describe_row(row):
     parts.append(f"{other_map.get(row['atelectasis_left2'], 'unknown')} left atelectasis")
     parts.append(f"{pneumo_map.get(row['pneumothorax_right'], 'unknown')} right pneumothorax")
     parts.append(f"{pneumo_map.get(row['pneumothorax_left'], 'unknown')} left pneumothorax")
-    parts.append(f"{(row['Sonsiges'], 'unknown')}")
+    parts.append(f"{(row['Sonstiges'], 'unknown')}")
     return "Clinical data: " + ", ".join(parts) + "."
 
 def clean_yaml_format(output_text):
