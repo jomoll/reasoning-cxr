@@ -5,7 +5,6 @@ import torch
 import yaml
 from shutil import copyfile
 from tqdm import tqdm 
-from datasets import load_dataset
 
 # constants
 version = str(3.0)
@@ -45,14 +44,17 @@ prompt_base = (
 
 def describe_row(row):
     parts = [f"Patient age {int(row['Age'])//365} years"]
-    parts.append(f"{cardio_map.get(row['HeartSize'], 'unknown')} cardiomegaly")
-    parts.append(f"{other_map.get(row['PulmonaryCongestion'], 'unknown')} pulmonary congestion")
-    parts.append(f"{other_map.get(row['PleuralEffusion_Right'], 'unknown')} right pleural effusion")
-    parts.append(f"{other_map.get(row['PleuralEffusion_Left'], 'unknown')} left pleural effusion")
-    parts.append(f"{other_map.get(row['PulmonaryOpacities_Right'], 'unknown')} right pulmonary opacities")
-    parts.append(f"{other_map.get(row['PulmonaryOpacities_Left'], 'unknown')} left pulmonary opacities")
-    parts.append(f"{other_map.get(row['Atelectasis_Right'], 'unknown')} right atelectasis")
-    parts.append(f"{other_map.get(row['Atelectasis_Left'], 'unknown')} left atelectasis")
+    parts.append(f"{cardio_map.get(row['cardiomegaly2'], 'unknown')} cardiomegaly")
+    parts.append(f"{other_map.get(row['congestion2'], 'unknown')} congestion")
+    parts.append(f"{other_map.get(row['pleural_effusion_right2'], 'unknown')} right pleural effusion")
+    parts.append(f"{other_map.get(row['pleural_effusion_left2'], 'unknown')} left pleural effusion")
+    parts.append(f"{other_map.get(row['pneumonic_infiltrates_right2'], 'unknown')} right pneumonic infiltrates")
+    parts.append(f"{other_map.get(row['pneumonic_infiltrates_left2'], 'unknown')} left pneumonic infiltrates")
+    parts.append(f"{other_map.get(row['atelectasis_right2'], 'unknown')} right atelectasis")
+    parts.append(f"{other_map.get(row['atelectasis_left2'], 'unknown')} left atelectasis")
+    parts.append(f"{pneumo_map.get(row['pneumothorax_right2'], 'unknown')} right pneumothorax")
+    parts.append(f"{pneumo_map.get(row['pneumothorax_left2'], 'unknown')} left pneumothorax")
+    parts.append(f"{(row['Sonsiges'], 'unknown')}")
     return "Clinical data: " + ", ".join(parts) + "."
 
 def clean_yaml_format(output_text):
@@ -105,13 +107,28 @@ def clean_yaml_format(output_text):
 model = transformers.AutoModelForCausalLM.from_pretrained(model_name, cache_dir='.', trust_remote_code=True, device_map="auto", torch_dtype=torch.bfloat16)
 tokenizer = transformers.AutoTokenizer.from_pretrained(model_name, cache_dir='.', trust_remote_code=True)
 
-dataset = load_dataset("TLAIM/TAIX-Ray", name="default")["train"]
-metadata_df = pd.DataFrame(dataset)
+# Load metadata
+metadata_df = pd.read_csv(metadata_path)
+metadata_df.set_index("UID", inplace=True)
+
+# Add this after loading metadata_df but before the iteration loop
+target_uids_file = "target_uids.txt"
+if os.path.exists(target_uids_file):
+    with open(target_uids_file, 'r') as f:
+        target_uids = {line.strip() for line in f if line.strip()}
+    # Filter metadata to only include target UIDs
+    metadata_df = metadata_df[metadata_df.index.isin(target_uids)]
+    print(f"Found {len(metadata_df)} samples matching target UIDs")
+else:
+    print("No target_uids.txt found, will process all samples")
+
+# Update total_images to not exceed available samples
+total_images = min(total_images, len(metadata_df))
 
 # Define mappings
 cardio_map = {-1: "not assessable", 0: "normal", 1: "borderline", 2: "enlarged", 4: "massively enlarged"}
 other_map = {0: "none", 1: "mild", 2: "moderate", 3: "severe", 4: "very severe"}
-
+pneumo_map = {0: "no", 1: "there is a"}
 # Create output directory if it doesn't exist
 os.makedirs(yaml_output_dir, exist_ok=True)
 
@@ -120,13 +137,11 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
     # check if uid already in data/annotations/v1.0
     if os.path.exists(yaml_output_dir):
         existing_uids = {os.path.splitext(f)[0] for f in os.listdir(yaml_output_dir) if f.endswith('.yaml')}
+        metadata_df = metadata_df[~metadata_df.index.isin(existing_uids)]
     # Iterate through each row in the metadata DataFrame
-    for i, row in metadata_df.iterrows():
-        uid = row['UID']
-        if uid in existing_uids:
-            continue
+    for uid, row in metadata_df.iterrows():
         yaml_output_path = os.path.join(yaml_output_dir, f"{uid}.yaml")
-
+            
         try:
             # Copy template file
             copyfile(template_path, yaml_output_path)
@@ -145,9 +160,10 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
             with torch.no_grad():
                 outputs = model.generate(
                     **inputs,
-                    max_new_tokens=2248,
+                    max_new_tokens=1800,
                     do_sample=True,
-                    num_beams=4,
+                    num_beams=1,
+                    temperature=0.5,
                     pad_token_id=tokenizer.eos_token_id
                 )
             
@@ -163,8 +179,7 @@ with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
             metadata = row.to_dict()
             # Convert numpy types to native Python types for YAML serialization
             metadata = {k: v.item() if hasattr(v, 'item') else v for k, v in metadata.items()}
-            # remove image from dict
-            metadata.pop('Image', None)
+
             # Update YAML content while preserving structure
             yaml_content['image-type'] = "chest-x-ray"
             yaml_content['version'] = version

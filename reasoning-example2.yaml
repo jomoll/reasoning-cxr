@@ -1,0 +1,128 @@
+image-type: chest-x-ray
+version: '1.0'
+annotator: meta-llama/Llama-3.1-8B-Instruct
+image-id: b8af0db8c69bcec1a99691c75ab99b7e11bb471b07bdfe021947a57381a31f4bs
+metadata:
+  PatientID: 80848ae0-12f5-4cd2-8712-7ae3e84bf756
+  Age: 22896
+  cardiomegaly: 2
+  congestion: 2
+  pleural_effusion_right: 1
+  pleural_effusion_left: 3
+  pneumonic_infiltrates_right: 2
+  pneumonic_infiltrates_left: 2
+  atelectasis_right: 0
+  atelectasis_left: 3
+metadata revised:
+  cardiomegaly: 3
+  congestion: 3
+  pleural_effusion_right: 2
+  pleural_effusion_left: 3
+  pneumonic_infiltrates_right: 2
+  pneumonic_infiltrates_left: 0
+  atelectasis_right: 0
+  atelectasis_left: 3
+reasoning:
+  Reasoning:
+    - Step 1: 
+      Description: Assess Image Quality
+      Action: 
+      - I am examining the chest X-ray image.
+      - The image is clear, well-defined, and free of artifacts or obstructions.
+      - There is no significant rotation; the patient is symmetrically positioned.
+      - The lungs are fully visible; no foreign objects obscure critical anatomy.
+      - Exposure is appropriate (neither over- nor under-exposed).
+      Result: The image is of diagnostic quality.
+    - Step 2: 
+      Description: Central Venous Catheter Placement
+      Action:
+      - I scan the right neck and subclavian region for a catheter; none is present.
+      - I scan the left neck and subclavian region; I see a catheter entering the left subclavian vein.
+      - I follow its course, the tip lies within the superior vena cava, at the level of the carina.
+      Result: A left subclavian central venous catheter is in place; tip appropriately located in the superior vena cava.
+    - Step 3: 
+      Description: Endotracheal Tube Placement
+      Action:
+      - I inspect the trachea for an endotracheal tube; none is visualized.
+      Result: No endotracheal tube is present.
+    - Step 4: 
+      Description: Nasogastric Tube Placement
+      Action:
+      - I trace the esophageal region for a nasogastric tube; none is seen.
+      Result: No nasogastric tube is present.
+    - Step 5: 
+      Description: Chest Tube Placement
+      Action:
+      - I search the right hemithorax; I identify a right-sided chest tube with its tip in the mid lung field.
+      - I search the left hemithorax; no chest tube is seen.
+      Result: Right chest tube is in place with tip in the mid lung zone; no left chest tube.
+    - Step 6: 
+      Description: Pacemaker or Other Devices
+      Action:
+      - I inspect both hemithoraces for a pacemaker generator or leads; none are present.
+      - I look for orthopedic hardware or other devices; none are detected.
+      Result: No pacemaker or other devices present.
+    - Step 7: 
+      Description: Cardiac Size and Contours
+      Action:
+      - I assess cardiothoracic ratio; the heart appears enlarged.
+      - Cardiac contours are clear and well-defined.
+      Result: The heart size is enlarged.
+    - Step 8: 
+      Description: Mediastinal Evaluation
+      Action:
+      - I evaluate mediastinal width and position; the mediastinum is normal in size and midline.
+      - Mediastinal contours are intact and well-defined.
+      Result: No mediastinal enlargement or shift.
+    - Step 9: 
+      Description: Pulmonary Vascular Congestion
+      Action:
+      - I assess vascular markings for redistribution.
+      - I note Kerley B lines and peribronchial cuffing.
+      - Signs consistent with pulmonary edema are present.
+      Result: Findings indicate pulmonary vascular congestion.
+    - Step 10: 
+      Description: Pleural Effusion
+      Action:
+      - I examine costophrenic angles bilaterally.
+      - Right angle is blunted with opacity; moderate effusion.
+      - Left angle is obliterated with larger opacity; severe effusion.
+      Result: Moderate right and severe left pleural effusions.
+    - Step 11: 
+      Description: Atelectasis
+      Action:
+      - I inspect lung parenchyma for collapse.
+      - Right lung is fully expanded; no atelectasis.
+      - Left lung shows opacity and volume loss consistent with compression from effusion.
+      Result: Left compression atelectasis due to pleural effusion; no right atelectasis.
+    - Step 12: 
+      Description: Pulmonary Infiltrates
+      Action:
+      - I search for alveolar or interstitial opacities.
+      - Right lower lung zone demonstrates patchy opacity consistent with pneumonia.
+      - Left lung shows no infiltrative abnormalities.
+      Result: Right lower lobe pneumonic infiltrates; left lung clear.
+    - Step 13: 
+      Description: Pneumothorax
+      Action:
+      - I look for pleural lines and absence of vascular markings.
+      - Neither hemithorax shows a pneumothorax; no mediastinal shift.
+      Result: No pneumothorax.
+    - Step 14: 
+      Description: Soft Tissue and Other Pathologies
+      Action:
+      - I assess soft tissues of the chest wall for masses or subcutaneous emphysema.
+      - No soft tissue abnormalities are noted.
+      Result: No soft tissue pathology.
+    - Step 15: 
+      Description: Impression
+      Action:
+      - I synthesize all findings into a concise summary
+      - Diagnostic-quality image.
+      - Left subclavian central line appropriately placed.
+      - Right chest tube in situ.
+      - Cardiomegaly with signs of pulmonary vascular congestion.
+      - Moderate right and severe left pleural effusions causing left compression atelectasis.
+      - Right lower lobe pneumonic infiltrates.
+      - No pneumothorax or other devices present.
+      Result: Impression consistent with congestive heart failure exacerbation and bilateral pleural effusions, worse on the left, with superimposed right lower lobe pneumonia.
