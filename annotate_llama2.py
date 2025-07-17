@@ -104,7 +104,7 @@ model = transformers.AutoModelForCausalLM.from_pretrained(model_name, cache_dir=
 tokenizer = transformers.AutoTokenizer.from_pretrained(model_name, cache_dir='.', trust_remote_code=True)
 
 dataset = load_dataset(dataset_name, name="default")["train"]
-dataset = dataset.select(range(5))
+dataset = dataset.select(range(50000))
 metadata_df = pd.DataFrame(dataset)
 
 # Define mappings
