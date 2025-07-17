@@ -116,11 +116,11 @@ os.makedirs(yaml_output_dir, exist_ok=True)
 
 # Iterate through metadata file
 with tqdm(total=total_images, desc="Writing Reasoning traces...") as pbar:
-    # check if uid already in data/annotations/v1.0
-    if os.path.exists(yaml_output_dir) or os.path.exists(alternative_yaml_output_dir):
-        existing_uids = {os.path.splitext(f)[0] for f in os.listdir(yaml_output_dir) if f.endswith('.yaml')}
     # Iterate through each row in the metadata DataFrame
     for i, row in metadata_df.iterrows():
+        existing_uids = {os.path.splitext(f)[0] for f in os.listdir(yaml_output_dir) if f.endswith('.yaml')}
+        existing_uids.update({os.path.splitext(f)[0] for f in os.listdir(alternative_yaml_output_dir) if f.endswith('.yaml')})
+        print("Number of existing uids:", len(existing_uids))
         uid = row['UID']
         if uid in existing_uids:
             continue
