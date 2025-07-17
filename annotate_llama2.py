@@ -10,8 +10,8 @@ from datasets import load_dataset
 # constants
 version = str(3.1)
 metadata_path = "data/keno_1000/Metadata_1000_only_new.csv"
-yaml_output_dir = "data/keno_1000/annotations/v"+version
-alternative_yaml_output_dir = "data/keno_1000/annotations/v3.0"
+yaml_output_dir = "data/keno_1000/annotations/reasoning-cxr-data/v"+version
+alternative_yaml_output_dir = "data/keno_1000/annotations/reasoning-cxr-data/v3.0"
 template_path = "template_llama.yaml"
 model_name = "models/Llama-3.1-8B-Instruct"
 dataset_name = "datafolder/TAIX-Ray"
